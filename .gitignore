@@ -1,6 +1,21 @@
-.DS_Store
-/node_modules/
+# Dependencies
+node_modules/
 
-# React Router
-/.react-router/
-/build/
+# Build outputs
+build/
+.react-router/
+
+# Environment
+.env
+.env.local
+
+# Netlify
+.netlify/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

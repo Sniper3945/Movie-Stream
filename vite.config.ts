@@ -5,4 +5,12 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  server: {
+    // Configuration pour servir les fichiers statiques correctement
+    fs: {
+      strict: false
+    }
+  },
+  // S'assurer que les assets sont bien servis
+  publicDir: 'public'
 });
