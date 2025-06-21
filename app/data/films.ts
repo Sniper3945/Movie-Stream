@@ -48,7 +48,8 @@ export const films: Film[] = [
   {
     id: "film5",
     title: "Le Samouraï",
-    cover: "/assets/film5.png",
+    // cover: "/assets/film5.png",
+    cover: "/assets/placeholder.png",
     duration: "2h 05min",
     description: "Alain Delon incarne Jef Costello, tueur à gages solitaire et méticuleux. Chef-d'œuvre de Jean-Pierre Melville qui influence encore le cinéma moderne.",
     year: 1967,
@@ -57,8 +58,8 @@ export const films: Film[] = [
   {
     id: "film6",
     title: "Le Clan des Siciliens",
-    cover: "/assets/placeholder.png",
-    // cover: "/assets/film6.png",
+    // cover: "/assets/placeholder.png",
+    cover: "/assets/film6.png",
     duration: "1h 40min",
     description: "Alain Delon, Jean Gabin et Lino Ventura dans un polar haletant. L'histoire d'un braquage d'bijouterie orchestré par la mafia sicilienne à Paris.",
     year: 1969,

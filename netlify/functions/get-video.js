@@ -6,10 +6,11 @@ export const handler = async (event, context) => {
     film3: "https://0x0.st/8IpQ.mp4", // La piscine
     film4: "https://0x0.st/8IJ8.mp4", // Un Homme et Une Femme
     film5: "https://0x0.st/YYYY.mp4", // À remplacer par ton lien
-    film6: "https://0x0.st/ZZZZ.mp4", // À remplacer par ton lien
+    film6: "https://0x0.st/8IvB.mp4", // Clan des sciciliens
     film7: "https://0x0.st/AAAA.mp4", // À remplacer par ton lien
     film8: "https://0x0.st/BBBB.mp4", // À remplacer par ton lien
     film9: "https://0x0.st/CCCC.mp4", // À remplacer par ton lien
+    film10: "https://0x0.st/8Iv1.mp4", // The Usual Suspect
   };
 
   const { id } = event.queryStringParameters || {};
