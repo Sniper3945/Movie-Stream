@@ -1,9 +1,15 @@
 export const handler = async (event, context) => {
-  // Tes vrais liens 0x0.st obtenus avec ton bot
+  // Tes liens 0x0.st obtenus avec ton bot - ajoute-en plus selon tes besoins
   const videoLinks = {
     film1: "https://0x0.st/8IpD.mp4", // Gainsbourg (supprime le #nsfw)
     film2: "https://0x0.st/8Ipf.mp4", // L'affaire Thomas Crown (1968)
     film3: "https://0x0.st/8IpQ.mp4", // La piscine
+    film4: "https://0x0.st/8IJ8.mp4", // Un Homme et Une Femme
+    film5: "https://0x0.st/YYYY.mp4", // À remplacer par ton lien
+    film6: "https://0x0.st/ZZZZ.mp4", // À remplacer par ton lien
+    film7: "https://0x0.st/AAAA.mp4", // À remplacer par ton lien
+    film8: "https://0x0.st/BBBB.mp4", // À remplacer par ton lien
+    film9: "https://0x0.st/CCCC.mp4", // À remplacer par ton lien
   };
 
   const { id } = event.queryStringParameters || {};

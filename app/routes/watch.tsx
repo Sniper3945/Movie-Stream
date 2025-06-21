@@ -94,7 +94,7 @@ export default function Watch({ params }: Route.ComponentProps) {
           <video 
             ref={videoRef}
             controls 
-            className="w-full aspect-video bg-gray-900 rounded-lg"
+            className="w-full aspect-video rounded-lg"
             src={videoUrl}
             onContextMenu={(e) => e.preventDefault()}
           >

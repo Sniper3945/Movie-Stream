@@ -1,51 +1,51 @@
-# Welcome to React Router!
+# MovieStream
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Plateforme de streaming de films personnelle construite avec React Router v7 et Netlify.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+## Fonctionnalités
 
-## Features
+- 🎬 Streaming de films via liens 0x0.st
+- 🎨 Interface moderne avec TailwindCSS
+- 📱 Design responsive
+- 🚫 Protection contre le clic droit
+- 📺 Mode plein écran
+- ⚡ Déploiement automatique avec Netlify
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
-
-## Getting Started
-
-### Installation
-
-Install the dependencies:
+## Installation
 
 ```bash
 npm install
 ```
 
-### Development
-
-Start the development server with HMR:
+## Développement
 
 ```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+Accédez à `http://localhost:5173`
 
-## Building for Production
-
-Create a production build:
+## Build
 
 ```bash
 npm run build
 ```
 
-## Deployment
+## Déploiement
 
-### Docker Deployment
+Le site est automatiquement déployé sur Netlify via GitHub.
 
+## Technologies
+
+- React Router v7 (SPA Mode)
+- TypeScript
+- TailwindCSS
+- Netlify Functions
+- 0x0.st pour l'hébergement vidéo
+
+---
+
+Créé avec ❤️ par Arsène
 To build and run using Docker:
 
 ```bash
