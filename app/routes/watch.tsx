@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import type { Route } from "./+types/watch";
 import { getFilmById } from '../data/films';
+import { trackFilmView, trackVideoPlay, trackVideoComplete } from '../utils/analytics';
 
 export function meta({ params }: Route.MetaArgs) {
   const film = getFilmById(params.id);
@@ -18,13 +19,15 @@ export default function Watch({ params }: Route.ComponentProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const film = getFilmById(params.id);
-
   useEffect(() => {
     if (!film) {
       setError('Film non trouvé');
       setLoading(false);
       return;
     }
+    
+    // Track film view
+    trackFilmView(params.id, film.title);
     
     fetchVideoUrl(params.id);
   }, [params.id, film]);
@@ -39,10 +42,21 @@ export default function Watch({ params }: Route.ComponentProps) {
       setLoading(false);
     }
   };
-
   const handleFullscreen = (): void => {
     if (videoRef.current?.requestFullscreen) {
       videoRef.current.requestFullscreen();
+    }
+  };
+
+  const handleVideoPlay = (): void => {
+    if (film) {
+      trackVideoPlay(params.id, film.title);
+    }
+  };
+
+  const handleVideoEnded = (): void => {
+    if (film) {
+      trackVideoComplete(params.id, film.title);
     }
   };
 
@@ -90,13 +104,14 @@ export default function Watch({ params }: Route.ComponentProps) {
       </header>
       
       <div className="max-w-6xl mx-auto p-5">
-        <div className="mb-8 relative">
-          <video 
+        <div className="mb-8 relative">          <video 
             ref={videoRef}
             controls 
             className="w-full aspect-video rounded-lg"
             src={videoUrl}
             onContextMenu={(e) => e.preventDefault()}
+            onPlay={handleVideoPlay}
+            onEnded={handleVideoEnded}
           >
             Votre navigateur ne supporte pas la lecture vidéo.
           </video>

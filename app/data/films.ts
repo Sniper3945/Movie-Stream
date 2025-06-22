@@ -48,8 +48,8 @@ export const films: Film[] = [
   {
     id: "film5",
     title: "Le Samouraï",
-    // cover: "/assets/film5.png",
-    cover: "/assets/placeholder.png",
+    cover: "/assets/film5.png",
+    // cover: "/assets/placeholder.png",
     duration: "2h 05min",
     description: "Alain Delon incarne Jef Costello, tueur à gages solitaire et méticuleux. Chef-d'œuvre de Jean-Pierre Melville qui influence encore le cinéma moderne.",
     year: 1967,

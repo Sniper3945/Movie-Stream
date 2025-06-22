@@ -5,7 +5,7 @@ export const handler = async (event, context) => {
     film2: "https://0x0.st/8Ipf.mp4", // L'affaire Thomas Crown (1968)
     film3: "https://0x0.st/8IpQ.mp4", // La piscine
     film4: "https://0x0.st/8IJ8.mp4", // Un Homme et Une Femme
-    film5: "https://0x0.st/YYYY.mp4", // À remplacer par ton lien
+    film5: "https://0x0.st/8IId.mp4", // Le Samouraï
     film6: "https://0x0.st/8IvB.mp4", // Clan des sciciliens
     film7: "https://0x0.st/AAAA.mp4", // À remplacer par ton lien
     film8: "https://0x0.st/BBBB.mp4", // À remplacer par ton lien

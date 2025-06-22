@@ -1,6 +1,7 @@
 import type { Route } from "./+types/_index";
 import { Link } from "react-router";
 import { films } from "../data/films";
+import { trackFilmClick } from "../utils/analytics";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -10,6 +11,10 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Index() {
+  const handleFilmClick = (filmId: string, filmTitle: string) => {
+    trackFilmClick(filmId, filmTitle);
+  };
+
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-5">
       <header className="text-center mb-8 md:mb-10">
@@ -21,11 +26,11 @@ export default function Index() {
       
       <main className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-          {films.map(film => (
-            <Link
+          {films.map(film => (            <Link
               key={film.id}
               to={`/watch/${film.id}`}
               className="bg-gray-900 rounded-xl overflow-hidden transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl min-h-[450px] md:min-h-[500px] block"
+              onClick={() => handleFilmClick(film.id, film.title)}
             >
               <div className="relative group">
                 <img 
