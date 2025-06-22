@@ -1,22 +1,15 @@
-// Fonction pour envoyer des événements à Google Analytics via GTM
+// Fonction pour envoyer des événements à Google Analytics
 declare global {
   interface Window {
-    dataLayer: Array<any>;
+    gtag: (command: string, action: string, parameters?: Record<string, any>) => void;
   }
-}
-
-// Initialiser dataLayer si pas déjà fait
-if (typeof window !== 'undefined' && !window.dataLayer) {
-  window.dataLayer = [];
 }
 
 // Fonction pour tracker les événements
 export const trackEvent = (eventName: string, parameters: Record<string, any> = {}) => {
-  if (typeof window !== 'undefined' && window.dataLayer) {
-    window.dataLayer.push({
-      event: eventName,
-      ...parameters,
-    });
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', eventName, parameters);
+    console.log('GA Event tracked:', eventName, parameters);
   }
 };
 
