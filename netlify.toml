@@ -11,6 +11,7 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
     X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
 
 [[headers]]
   for = "*.js"
@@ -45,7 +46,6 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     # Force compression
