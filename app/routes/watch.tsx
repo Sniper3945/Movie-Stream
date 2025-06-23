@@ -34,27 +34,39 @@ export default function Watch({ params }: Route.ComponentProps) {
 
   const fetchVideoUrl = async (filmId: string): Promise<void> => {
     try {
-      const functionUrl = `/.netlify/functions/get-video?id=${filmId}`;
-      
-      // If film has direct videoUrl from MongoDB, use it
+      // If film has direct videoUrl from MongoDB, use it immediately
       if (film && film.videoUrl) {
+        console.log('Using direct videoUrl:', film.videoUrl);
         setVideoUrl(film.videoUrl);
         setLoading(false);
         return;
       }
       
       // Otherwise, use the function (for old films)
+      console.log('Fetching video URL for:', filmId);
+      const functionUrl = `/.netlify/functions/get-video?id=${filmId}`;
       const response = await fetch(functionUrl);
+      
+      console.log('Response status:', response.status);
       
       if (response.status === 302) {
         const location = response.headers.get('Location');
-        setVideoUrl(location || functionUrl);
+        console.log('Redirect to:', location);
+        setVideoUrl(location || '');
+      } else if (response.ok) {
+        // Try to get JSON response
+        const data = await response.json();
+        console.log('Response data:', data);
+        if (data.videoUrl) {
+          setVideoUrl(data.videoUrl);
+        }
       } else {
-        setVideoUrl(functionUrl);
+        throw new Error(`HTTP ${response.status}`);
       }
       
       setLoading(false);
     } catch (err) {
+      console.error('Error fetching video URL:', err);
       setError('Erreur lors du chargement de la vidéo');
       setLoading(false);
     }

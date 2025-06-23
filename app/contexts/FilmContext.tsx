@@ -45,17 +45,28 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/.netlify/functions/get-films');
+      // Réduire le timeout pour accélérer le fallback
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 secondes seulement
+      
+      const response = await fetch('/.netlify/functions/get-films', {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
         throw new Error('Failed to fetch films from MongoDB');
       }
       
       const data = await response.json();
+      console.log('Films récupérés:', data);
       setFilms(data);
     } catch (err) {
-      // Fallback to static data if MongoDB is not available
+      // Fallback rapide aux données statiques
+      console.warn('Using static data as fallback:', err);
       setFilms(staticFilms);
-      setError(null); // Don't show error, just use fallback silently
+      setError(null);
     } finally {
       setLoading(false);
     }
