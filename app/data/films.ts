@@ -1,3 +1,6 @@
+// NOTE: Ce fichier sera progressivement remplacé par MongoDB
+// Gardé temporairement pour la compatibilité pendant la migration
+
 export interface Film {
   id: string;
   title: string;
@@ -6,6 +9,7 @@ export interface Film {
   description: string;
   year?: number;
   genre?: string[];
+  videoUrl?: string; // Add this property for compatibility
 }
 
 export const films: Film[] = [
@@ -58,7 +62,6 @@ export const films: Film[] = [
   {
     id: "film6",
     title: "Le Clan des Siciliens",
-    // cover: "/assets/placeholder.png",
     cover: "/assets/film6.png",
     duration: "2h 04min",
     description: "Alain Delon, Jean Gabin et Lino Ventura dans un polar haletant. L'histoire d'un braquage d'bijouterie orchestré par la mafia sicilienne à Paris.",
@@ -68,7 +71,6 @@ export const films: Film[] = [
   {
     id: "film7",
     title: "Orange mécanique vf",
-    // cover: "/assets/placeholder.png",
     cover: "/assets/film7.png",
     duration: "2h 16min",
     description: "Dystopie culte de Stanley Kubrick. Dans un futur proche, Alex DeLarge et ses droogs sèment la terreur avant qu'Alex ne subisse un traitement controversé.",
@@ -78,7 +80,6 @@ export const films: Film[] = [
   {
     id: "film8",
     title: "Les Dents de la mer vf",
-    // cover: "/assets/placeholder.png",
     cover: "/assets/film8.png",
     duration: "2h 04min",
     description: "Premier blockbuster de Steven Spielberg. Un requin géant terrorise une station balnéaire américaine. Suspense aquatique qui a marqué l'histoire du cinéma.",
@@ -88,7 +89,6 @@ export const films: Film[] = [
   {
     id: "film9",
     title: "Taxi Driver vf",
-    // cover: "/assets/placeholder.png",
     cover: "/assets/film9.png",
     duration: "1h 54min",
     description: "Robert De Niro incarne Travis Bickle, chauffeur de taxi new-yorkais sombrant dans la paranoïa. Chef-d'œuvre sombre de Martin Scorsese sur l'aliénation urbaine.",

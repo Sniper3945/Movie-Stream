@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import type { Route } from "./+types/watch";
-import { getFilmById } from '../data/films';
+import { useFilms } from '../contexts/FilmContext';
 import { trackFilmView, trackVideoPlay, trackVideoComplete } from '../utils/analytics';
 
 export function meta({ params }: Route.MetaArgs) {
-  const film = getFilmById(params.id);
   return [
-    { title: film ? `${film.title} - MovieStream` : "Film non trouvé" },
-    { name: "description", content: film?.description || "Film non trouvé" },
+    { title: "Film - MovieStream" },
+    { name: "description", content: "Regarder un film en streaming" },
   ];
 }
 
@@ -18,7 +17,9 @@ export default function Watch({ params }: Route.ComponentProps) {
   const [error, setError] = useState<string>('');
   const videoRef = useRef<HTMLVideoElement>(null);
   
+  const { getFilmById } = useFilms();
   const film = getFilmById(params.id);
+
   useEffect(() => {
     if (!film) {
       setError('Film non trouvé');
@@ -26,22 +27,38 @@ export default function Watch({ params }: Route.ComponentProps) {
       return;
     }
     
-    // Track film view
     trackFilmView(params.id, film.title);
-    
     fetchVideoUrl(params.id);
   }, [params.id, film]);
 
   const fetchVideoUrl = async (filmId: string): Promise<void> => {
     try {
       const functionUrl = `/.netlify/functions/get-video?id=${filmId}`;
-      setVideoUrl(functionUrl);
+      
+      // If film has direct videoUrl from MongoDB, use it
+      if (film && film.videoUrl) {
+        setVideoUrl(film.videoUrl);
+        setLoading(false);
+        return;
+      }
+      
+      // Otherwise, use the function (for old films)
+      const response = await fetch(functionUrl);
+      
+      if (response.status === 302) {
+        const location = response.headers.get('Location');
+        setVideoUrl(location || functionUrl);
+      } else {
+        setVideoUrl(functionUrl);
+      }
+      
       setLoading(false);
     } catch (err) {
       setError('Erreur lors du chargement de la vidéo');
       setLoading(false);
     }
   };
+
   const handleFullscreen = (): void => {
     if (videoRef.current?.requestFullscreen) {
       videoRef.current.requestFullscreen();
@@ -104,7 +121,8 @@ export default function Watch({ params }: Route.ComponentProps) {
       </header>
       
       <div className="max-w-6xl mx-auto p-5">
-        <div className="mb-8 relative">          <video 
+        <div className="mb-8 relative">
+          <video 
             ref={videoRef}
             controls 
             className="w-full aspect-video rounded-lg"
@@ -116,9 +134,10 @@ export default function Watch({ params }: Route.ComponentProps) {
             Votre navigateur ne supporte pas la lecture vidéo.
           </video>
           
+          {/* Bouton plein écran visible uniquement sur desktop */}
           <button
             onClick={handleFullscreen}
-            className="absolute top-4 right-4 bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 rounded-lg transition-colors z-10"
+            className="absolute top-4 right-4 bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 rounded-lg transition-colors z-10 hidden md:block"
           >
             📺 Plein écran
           </button>
