@@ -1,7 +1,18 @@
 const mongoose = require("mongoose");
 
-// Use environment variables
+// Variables d'environnement Netlify
 const MONGODB_URI = process.env.MONGODB_URI;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+
+// Validation des variables d'environnement
+if (!MONGODB_URI || !ADMIN_PASSWORD || !ENCRYPTION_KEY) {
+  console.error("❌ Missing environment variables:", {
+    MONGODB_URI: !!MONGODB_URI,
+    ADMIN_PASSWORD: !!ADMIN_PASSWORD,
+    ENCRYPTION_KEY: !!ENCRYPTION_KEY,
+  });
+}
 
 // Film Schema with GridFS reference for large images
 const filmSchema = new mongoose.Schema({
@@ -126,6 +137,18 @@ exports.handler = async (event, context) => {
 
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers };
+  }
+
+  // Vérification des variables d'environnement
+  if (!MONGODB_URI) {
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: "Server configuration error",
+        details: "MongoDB URI not configured",
+      }),
+    };
   }
 
   if (event.httpMethod !== "POST") {
