@@ -26,8 +26,8 @@ export default function Index() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-3 border-teal-400 border-t-transparent border-solid rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl">Chargement des films...</p>
-          <p className="text-sm text-gray-400 mt-2">Tentative MongoDB en cours...</p>
+          <p className="text-xl">Chargement du site</p>
+          <p className="text-sm text-gray-400 mt-2">Mise en place de votre home cinéma...</p>
         </div>
       </div>
     );

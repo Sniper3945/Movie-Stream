@@ -44,14 +44,38 @@ export function Layout({ children }: { children: React.ReactNode }) {
           `
         }} />
 
-        {/* Service Worker */}
+        {/* Service Worker avec cache clearing */}
         <script dangerouslySetInnerHTML={{
           __html: `
             if ('serviceWorker' in navigator) {
-              window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => {
-                  console.log('SW registration failed');
-                });
+              window.addEventListener('load', async () => {
+                try {
+                  // Nettoyer les anciens caches d'abord
+                  const cacheNames = await caches.keys();
+                  for (const cacheName of cacheNames) {
+                    if (cacheName.includes('moviestream-v1')) {
+                      console.log('[Cache] Deleting old cache:', cacheName);
+                      await caches.delete(cacheName);
+                    }
+                  }
+                  
+                  // Enregistrer le nouveau service worker
+                  const registration = await navigator.serviceWorker.register('/sw.js');
+                  console.log('[SW] Registration successful:', registration);
+                  
+                  // Forcer l'update si nouveau SW disponible
+                  registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('[SW] New version available - reloading...');
+                        window.location.reload();
+                      }
+                    });
+                  });
+                } catch (err) {
+                  console.log('[SW] Registration failed:', err);
+                }
               });
             }
           `

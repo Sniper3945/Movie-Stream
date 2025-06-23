@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cache Clear - MovieStream</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background: #000; 
+            color: #fff; 
+            padding: 20px;
+            text-align: center;
+        }
+        .btn {
+            background: #059669;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .btn:hover { background: #047857; }
+        #status { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 MovieStream Cache Cleaner</h1>
+    <p>Utilisez cette page pour nettoyer complètement le cache si le site ne charge pas.</p>
+    
+    <button class="btn" onclick="clearAllCaches()">🗑️ Nettoyer Tout le Cache</button>
+    <button class="btn" onclick="unregisterSW()">❌ Désinstaller Service Worker</button>
+    <button class="btn" onclick="clearAndReload()">🔄 Nettoyer + Recharger</button>
+    
+    <div id="status"></div>
+    
+    <script>
+        const status = document.getElementById('status');
+        
+        async function clearAllCaches() {
+            try {
+                status.innerHTML = '🔄 Nettoyage des caches...';
+                
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+                
+                status.innerHTML = '✅ Tous les caches supprimés!';
+            } catch (error) {
+                status.innerHTML = '❌ Erreur: ' + error.message;
+            }
+        }
+        
+        async function unregisterSW() {
+            try {
+                status.innerHTML = '🔄 Désinstallation Service Worker...';
+                
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(registrations.map(reg => reg.unregister()));
+                
+                status.innerHTML = '✅ Service Worker désinstallé!';
+            } catch (error) {
+                status.innerHTML = '❌ Erreur: ' + error.message;
+            }
+        }
+        
+        async function clearAndReload() {
+            await clearAllCaches();
+            await unregisterSW();
+            status.innerHTML = '🔄 Redirection vers le site...';
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
