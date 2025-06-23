@@ -97,7 +97,12 @@ export default function Index() {
               </div>
               <div className="p-4 md:p-5">
                 <h3 className="text-lg md:text-xl font-bold mb-2 text-ellipsis overflow-hidden whitespace-nowrap">{film.title}</h3>
-                <p className="text-teal-400 font-bold mb-2 text-sm md:text-base">{film.duration}</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-teal-400 font-bold text-sm md:text-base">{film.duration}</p>
+                  {film.year && (
+                    <p className="text-gray-400 font-medium text-sm md:text-base">{film.year}</p>
+                  )}
+                </div>
                 <p className="text-gray-400 leading-relaxed text-sm md:text-base line-clamp-3">{film.description}</p>
               </div>
             </Link>
