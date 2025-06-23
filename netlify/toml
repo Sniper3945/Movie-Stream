@@ -1,0 +1,17 @@
+# ...existing build settings...
+
+[functions]
+  node_bundler = "esbuild"
+  # Timeout plus court pour éviter les problèmes
+  timeout = 8
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Access-Control-Allow-Origin = "*"

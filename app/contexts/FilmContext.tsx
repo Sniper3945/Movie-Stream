@@ -41,7 +41,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchFilms = async () => {
-    // Charger immédiatement les données statiques complètes pour performance
+    // Charger immédiatement les données statiques complètes
     const completeStaticFilms: Film[] = [
       ...staticFilms,
       {
@@ -49,7 +49,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
         title: "Apocalypse Now",
         cover: "/assets/apocalypse-now-cover.png",
         duration: "3h 02min",
-        description: "Chef-d'œuvre de Francis Ford Coppola sur la guerre du Vietnam. Un voyage hallucinant au cœur des ténèbres de la guerre.",
+        description: "Chef-d'œuvre de Francis Ford Coppola sur la guerre du Vietnam.",
         year: 1979,
         genre: ["Drame", "Guerre"],
         videoUrl: "https://0x0.st/8lrT.mp4",
@@ -59,23 +59,23 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
         title: "8½",
         cover: "/assets/huit et demie.png",
         duration: "2h 18min",
-        description: "Fellini explore la crise créative d'un réalisateur dans ce chef-d'œuvre du cinéma italien. Rêve et réalité se mélangent.",
+        description: "Fellini explore la crise créative d'un réalisateur.",
         year: 1963,
         genre: ["Drame", "Comédie"],
         videoUrl: "https://0x0.st/8lzm.mp4",
       }
     ];
 
-    // Affichage immédiat des films statiques (performance max)
-    console.log('🚀 Chargement instantané de', completeStaticFilms.length, 'films statiques');
+    // Affichage instantané - site toujours fonctionnel
+    console.log('🚀 Affichage immédiat de', completeStaticFilms.length, 'films');
     setFilms(completeStaticFilms);
     setLoading(false);
 
-    // Tentative MongoDB en arrière-plan sans bloquer l'UI
+    // Tentative MongoDB en arrière-plan (très rapide)
     setTimeout(async () => {
       try {
         const controller = new AbortController();
-        setTimeout(() => controller.abort(), 2000);
+        setTimeout(() => controller.abort(), 1000); // 1 seconde max
         
         const response = await fetch('/.netlify/functions/get-films', {
           signal: controller.signal
@@ -83,15 +83,15 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
         
         if (response.ok) {
           const data = await response.json();
-          if (data.length > 0) {
-            console.log('✅ Films MongoDB mis à jour en arrière-plan:', data.length);
+          if (data.length > completeStaticFilms.length) {
+            console.log('✅ MongoDB data updated:', data.length, 'films');
             setFilms(data);
           }
         }
       } catch (err) {
-        console.log('💾 MongoDB indisponible - Films statiques conservés');
+        console.log('💾 Static data kept (MongoDB unavailable)');
       }
-    }, 100);
+    }, 50); // Délai minimal
   };
 
   useEffect(() => {

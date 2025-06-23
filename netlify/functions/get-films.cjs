@@ -31,9 +31,10 @@ const connectDB = async () => {
     console.log("🔄 Connecting to MongoDB with READ-ONLY user...");
 
     await mongoose.connect(MONGODB_URI, {
-      maxPoolSize: 3,
-      serverSelectionTimeoutMS: 8000,
-      socketTimeoutMS: 45000,
+      maxPoolSize: 1, // Réduit pour Netlify
+      serverSelectionTimeoutMS: 5000, // 5 secondes
+      socketTimeoutMS: 30000,
+      connectTimeoutMS: 5000,
       bufferCommands: false,
       retryWrites: true,
       w: "majority",
@@ -71,24 +72,25 @@ exports.handler = async (event, context) => {
   try {
     console.log("🚀 Function started - get-films (READ-ONLY)");
 
+    // Timeout très court pour éviter les timeouts Netlify
     await Promise.race([
       connectDB(),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Connection timeout after 8s")), 8000)
+        setTimeout(() => reject(new Error("MongoDB timeout after 4s")), 4000)
       ),
     ]);
 
-    console.log("📊 Fetching films from database...");
-    const films = await Film.find().sort({ createdAt: 1 }).lean(); // .lean() pour optimiser
+    const films = await Promise.race([
+      Film.find().sort({ createdAt: 1 }).lean(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Query timeout")), 3000)
+      ),
+    ]);
+
     console.log(`📋 Successfully fetched ${films.length} films`);
 
     if (films.length === 0) {
-      console.warn("⚠️ No films found in database");
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify([]),
-      };
+      throw new Error("No films in database");
     }
 
     // Transform films
@@ -110,9 +112,9 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(transformedFilms),
     };
   } catch (error) {
-    console.error("❌ Function failed:", error.message);
+    console.error("❌ MongoDB failed, using fallback:", error.message);
 
-    // Retourner le fallback complet en cas d'erreur
+    // Retourner immédiatement le fallback complet
     const fallbackFilms = [
       {
         id: "film1",
