@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
-const MONGODB_URI = process.env.MONGODB_URI;
+// Utilisateur READ-ONLY pour les vidéos publiques
+const MONGODB_URI = process.env.MONGODB_URI_APP;
 
 // Film Schema
 const filmSchema = new mongoose.Schema({
@@ -33,6 +34,8 @@ const connectDB = async () => {
 };
 
 exports.handler = async (event, context) => {
+  context.callbackWaitsForEmptyEventLoop = false;
+
   const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
@@ -70,23 +73,23 @@ exports.handler = async (event, context) => {
     };
   }
 
-  console.log(`🎬 Video request for: ${id}`);
+  console.log(`🎬 Video request for: ${id} (READ-ONLY mode)`);
 
-  // Try MongoDB first only if ID looks like MongoDB ObjectId
+  // Try MongoDB with READ-ONLY user
   if (id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
     try {
-      await connectDB();
-      const film = await Film.findById(id);
+      await connectDB(); // READ-ONLY connection
+      const film = await Film.findById(id).lean(); // .lean() pour optimiser
 
       if (film && film.videoUrl) {
-        console.log(`✅ Found MongoDB video: ${film.videoUrl}`);
+        console.log(`✅ Found video via READ-ONLY user: ${film.videoUrl}`);
         return {
           statusCode: 302,
           headers: { ...headers, Location: film.videoUrl },
         };
       }
     } catch (error) {
-      console.warn("⚠️ MongoDB error:", error);
+      console.warn("⚠️ READ-ONLY MongoDB error:", error.message);
     }
   }
 

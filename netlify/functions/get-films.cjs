@@ -1,12 +1,10 @@
 const mongoose = require("mongoose");
 
-// Variables d'environnement Netlify (automatiquement disponibles)
-const MONGODB_URI = process.env.MONGODB_URI;
+// Utilisateur avec permissions READ-ONLY pour l'application publique
+const MONGODB_URI = process.env.MONGODB_URI_APP;
 
-// Validation des variables d'environnement
 if (!MONGODB_URI) {
-  console.error("❌ MONGODB_URI is not defined in environment variables");
-  throw new Error("MongoDB URI not configured");
+  console.error("❌ MONGODB_URI_APP is not defined");
 }
 
 // Film Schema
@@ -28,16 +26,11 @@ const connectDB = async () => {
   try {
     // Vérifier si déjà connecté
     if (mongoose.connections[0].readyState === 1) {
-      console.log("✅ Already connected to MongoDB");
+      console.log("✅ Already connected to MongoDB (READ-ONLY)");
       return;
     }
 
-    console.log("🔄 Connecting to MongoDB...");
-    console.log("📋 MongoDB URI exists:", !!MONGODB_URI);
-    console.log(
-      "📋 MongoDB URI starts with:",
-      MONGODB_URI?.substring(0, 20) + "..."
-    );
+    console.log("🔄 Connecting to MongoDB with READ-ONLY user...");
 
     await mongoose.connect(MONGODB_URI, {
       // Configuration optimisée pour Netlify Functions
@@ -50,9 +43,9 @@ const connectDB = async () => {
       w: "majority",
     });
 
-    console.log("✅ MongoDB connected successfully");
+    console.log("✅ MongoDB connected (READ-ONLY access)");
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error.message);
+    console.error("❌ MongoDB READ-ONLY connection failed:", error.message);
     throw error;
   }
 };
@@ -122,6 +115,22 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify(transformedFilms),
     };
+  } catch (error) {
+    console.error("❌ Function error:", error.message);
+    console.error("📍 Error stack:", error.stack);
+
+    // Retourner une erreur au lieu du fallback pour diagnostiquer
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: "Internal server error",
+        details: error.message,
+        mongodbUri: !!MONGODB_URI ? "present" : "missing",
+      }),
+    };
+  }
+};
   } catch (error) {
     console.error("❌ Function error:", error.message);
     console.error("📍 Error stack:", error.stack);

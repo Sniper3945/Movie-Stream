@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
-// Variables d'environnement Netlify
-const MONGODB_URI = process.env.MONGODB_URI;
+// Utilisateur ADMIN avec permissions WRITE pour les fonctions administratives
+const MONGODB_URI = process.env.MONGODB_URI_ADMIN;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
@@ -31,18 +31,25 @@ const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);
 // Connect to MongoDB with optimized settings
 const connectDB = async () => {
   try {
-    if (mongoose.connections[0].readyState === 1) return;
+    if (mongoose.connections[0].readyState === 1) {
+      console.log("✅ Already connected to MongoDB (ADMIN)");
+      return;
+    }
+
+    console.log("🔄 Connecting to MongoDB with ADMIN user...");
 
     await mongoose.connect(MONGODB_URI, {
       maxPoolSize: 5,
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
       bufferCommands: false,
-      // Removed bufferMaxEntries as it's deprecated
+      retryWrites: true,
+      w: "majority",
     });
-    console.log("MongoDB connected successfully");
+
+    console.log("✅ MongoDB connected (ADMIN access - READ/WRITE)");
   } catch (error) {
-    console.error("MongoDB connection error:", error);
+    console.error("❌ MongoDB ADMIN connection failed:", error.message);
     throw error;
   }
 };
@@ -145,8 +152,8 @@ exports.handler = async (event, context) => {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: "Server configuration error",
-        details: "MongoDB URI not configured",
+        error: "Admin database not configured",
+        details: "MONGODB_URI_ADMIN missing",
       }),
     };
   }
@@ -236,7 +243,7 @@ exports.handler = async (event, context) => {
 
     console.log("Saving to database...");
     const savedFilm = await film.save();
-    console.log(`✅ Film saved successfully with ID: ${savedFilm._id}`);
+    console.log(`✅ Film saved via ADMIN user: ${savedFilm._id}`);
 
     return {
       statusCode: 200,
