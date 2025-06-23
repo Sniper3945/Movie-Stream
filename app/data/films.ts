@@ -113,6 +113,26 @@ export const films: Film[] = [
     genre: ["Thriller", "Policier"],
     videoUrl: "https://0x0.st/8Iv1.mp4",
   },
+  {
+    id: "film11",
+    title: "Apocalypse Now",
+    cover: "/assets/film11.png",
+    duration: "3h 02min",
+    description: "Chef-d'œuvre de Francis Ford Coppola sur la guerre du Vietnam.",
+    year: 1979,
+    genre: ["Drame", "Guerre"],
+    videoUrl: "https://0x0.st/8lrT.mp4",
+  },
+  {
+    id: "film12",
+    title: "8½",
+    cover: "/assets/film12.png",
+    duration: "2h 18min",
+    description: "Fellini explore la crise créative d'un réalisateur.",
+    year: 1963,
+    genre: ["Drame", "Comédie"],
+    videoUrl: "https://0x0.st/8lzm.mp4",
+  },
 ];
 
 export const getFilmById = (id: string): Film | undefined => {

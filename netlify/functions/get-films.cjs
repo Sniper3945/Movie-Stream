@@ -31,10 +31,10 @@ const connectDB = async () => {
     console.log("🔄 Connecting to MongoDB with READ-ONLY user...");
 
     await mongoose.connect(MONGODB_URI, {
-      maxPoolSize: 1, // Réduit pour Netlify
-      serverSelectionTimeoutMS: 5000, // 5 secondes
+      maxPoolSize: 1,
+      serverSelectionTimeoutMS: 4000,
       socketTimeoutMS: 30000,
-      connectTimeoutMS: 5000,
+      connectTimeoutMS: 4000,
       bufferCommands: false,
       retryWrites: true,
       w: "majority",
@@ -73,52 +73,74 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    console.log("🚀 [get-films] Function started at", new Date().toISOString());
     console.log("📡 [get-films] Tentative de connexion MongoDB...");
     const connectStartTime = Date.now();
 
-    // Connexion MongoDB avec timeout réduit pour éviter les lenteurs
     await Promise.race([
       connectDB(),
-      new Promise(
-        (_, reject) =>
-          setTimeout(() => {
-            console.log("❌ [get-films] MongoDB connection timeout après 1.5s");
-            reject(new Error("MongoDB connection timeout 1.5s"));
-          }, 1500) // Réduit à 1.5s pour éviter les 3.2s observés
+      new Promise((_, reject) =>
+        setTimeout(() => {
+          console.log("❌ [get-films] MongoDB connection timeout après 4s");
+          reject(new Error("MongoDB connection timeout 4s"));
+        }, 4000)
       ),
     ]);
 
     const connectTime = Date.now() - connectStartTime;
     console.log(`✅ [get-films] MongoDB connecté en ${connectTime}ms`);
 
-    console.log("🔍 [get-films] Exécution de la requête...");
+    console.log("🔍 [get-films] Exécution de la requête Film.find()...");
     const queryStartTime = Date.now();
 
-    // Query avec timeout très court
     const films = await Promise.race([
       Film.find().sort({ createdAt: 1 }).lean(),
-      new Promise(
-        (_, reject) =>
-          setTimeout(() => {
-            console.log("❌ [get-films] Query timeout après 500ms");
-            reject(new Error("Query timeout 500ms"));
-          }, 500) // Très court pour forcer l'efficacité
+      new Promise((_, reject) =>
+        setTimeout(() => {
+          console.log("❌ [get-films] Query timeout après 3s");
+          reject(new Error("Query timeout 3s"));
+        }, 3000)
       ),
     ]);
 
     const queryTime = Date.now() - queryStartTime;
-    const totalTime = Date.now() - functionStartTime;
-
     console.log(
       `📋 [get-films] Query terminée en ${queryTime}ms - ${films.length} films trouvés`
     );
-    console.log(
-      `🎉 [get-films] SUCCÈS TOTAL en ${totalTime}ms - Retour de ${films.length} films`
-    );
+
+    // LOG DÉTAILLÉ des films récupérés
+    console.log("📊 [get-films] Films bruts de MongoDB:", films);
+    films.forEach((film, index) => {
+      console.log(
+        `📄 [get-films] Film ${index + 1}: ${film.title} (${film._id})`
+      );
+    });
 
     if (films.length === 0) {
-      console.log("⚠️ [get-films] Aucun film en base, retour tableau vide");
+      console.log(
+        "⚠️ [get-films] AUCUN FILM TROUVÉ - Vérification de la collection..."
+      );
+
+      try {
+        const count = await Film.countDocuments();
+        console.log(`📊 [get-films] countDocuments(): ${count} films en base`);
+
+        if (count > 0) {
+          console.log(
+            "🔍 [get-films] Les films existent mais ne sont pas récupérés par find()"
+          );
+          // Essayer sans le sort pour voir
+          const filmsWithoutSort = await Film.find().lean();
+          console.log(
+            `📋 [get-films] Films sans sort: ${filmsWithoutSort.length}`
+          );
+        }
+      } catch (countError) {
+        console.log(
+          "❌ [get-films] Erreur countDocuments:",
+          countError.message
+        );
+      }
+
       return {
         statusCode: 200,
         headers,
@@ -126,14 +148,21 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Transform avec pattern film[x].png automatique
+    // Transform avec les covers existantes en /assets
     const transformedFilms = films.map((film, index) => {
-      const filmNumber = 13 + index; // Commence après les 12 films statiques
+      // Utiliser les covers existantes : film1.png à film12.png
+      const coverNumber = index + 1;
+
+      console.log(
+        `🔄 [get-films] Transform ${index + 1}: ${
+          film.title
+        } → film${coverNumber}.png`
+      );
 
       return {
         id: film._id.toString(),
         title: film.title,
-        cover: `/assets/film${filmNumber}.png`,
+        cover: `/assets/film${coverNumber}.png`, // Utiliser les covers existantes
         duration: film.duration,
         description: film.description,
         year: film.year,
@@ -141,6 +170,15 @@ exports.handler = async (event, context) => {
         videoUrl: film.videoUrl,
       };
     });
+
+    const totalTime = Date.now() - functionStartTime;
+    console.log(
+      `🎉 [get-films] SUCCÈS TOTAL en ${totalTime}ms - Retour de ${transformedFilms.length} films`
+    );
+    console.log(
+      `📋 [get-films] Films transformés:`,
+      transformedFilms.map((f) => `${f.title} (${f.cover})`)
+    );
 
     return {
       statusCode: 200,

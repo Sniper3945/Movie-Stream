@@ -42,20 +42,20 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
 
   const fetchFilms = async () => {
     console.log('🚀 [FilmContext] Démarrage du chargement des films');
-    console.log('⏱️ [FilmContext] Tentative MongoDB en PRIORITÉ - timeout 4s (ajusté)');
+    console.log('⏱️ [FilmContext] Tentative MongoDB en PRIORITÉ - timeout 5s (augmenté)');
     
     setLoading(true);
     setError(null);
 
-    // 1. PRIORITÉ : Tentative MongoDB avec timeout ajusté à 4s
+    // 1. PRIORITÉ : Tentative MongoDB avec timeout de 5s pour laisser le temps
     const mongoStartTime = performance.now();
     
     try {
       const mongoTimeoutPromise = new Promise<Film[]>((resolve, reject) => {
         const timeoutId = setTimeout(() => {
-          console.log('⏱️ [MongoDB] TIMEOUT après 4 secondes');
+          console.log('⏱️ [MongoDB] TIMEOUT après 5 secondes');
           reject(new Error('MongoDB timeout'));
-        }, 4000); // 4 secondes pour éviter le timeout vu dans HAR (3.2s)
+        }, 5000); // 5 secondes pour laisser plus de temps à MongoDB
 
         console.log('📡 [MongoDB] Envoi de la requête...');
         fetch('/.netlify/functions/get-films')
@@ -73,6 +73,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
             clearTimeout(timeoutId);
             const mongoTime = (performance.now() - mongoStartTime).toFixed(0);
             console.log(`✅ [MongoDB] Données parsées en ${mongoTime}ms:`, mongoFilms.length, 'films');
+            console.log(`📋 [MongoDB] Films reçus:`, mongoFilms.map((f: Film) => f.title));
             resolve(mongoFilms);
           })
           .catch((error: any) => {
@@ -83,7 +84,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
           });
       });
 
-      // Attendre MongoDB en priorité
+      // Attendre MongoDB en priorité avec plus de temps
       const mongoFilms = await mongoTimeoutPromise;
       
       if (mongoFilms.length > 0) {
@@ -100,35 +101,13 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
     } catch (mongoError: any) {
       const totalTime = (performance.now() - mongoStartTime).toFixed(0);
       console.log(`❌ [MongoDB] ÉCHEC après ${totalTime}ms:`, mongoError.message || 'Unknown error');
+      console.log('🔍 [MongoDB] Diagnostic: Base de données probablement vide');
+      console.log('💡 [MongoDB] Solution: Ajouter des films via /admin/ajout');
       console.log('💾 [Fallback] Chargement des films statiques...');
       
-      // 2. FALLBACK : Films statiques seulement si MongoDB échoue
-      const completeStaticFilms: Film[] = [
-        ...staticFilms,
-        {
-          id: "film11",
-          title: "Apocalypse Now",
-          cover: "/assets/apocalypse-now-cover.png",
-          duration: "3h 02min",
-          description: "Chef-d'œuvre de Francis Ford Coppola sur la guerre du Vietnam.",
-          year: 1979,
-          genre: ["Drame", "Guerre"],
-          videoUrl: "https://0x0.st/8lrT.mp4",
-        },
-        {
-          id: "film12",
-          title: "8½",
-          cover: "/assets/huit et demie.png",
-          duration: "2h 18min",
-          description: "Fellini explore la crise créative d'un réalisateur.",
-          year: 1963,
-          genre: ["Drame", "Comédie"],
-          videoUrl: "https://0x0.st/8lzm.mp4",
-        }
-      ];
-
-      console.log(`📁 [Fallback] ${completeStaticFilms.length} films statiques chargés`);
-      setFilms(completeStaticFilms);
+      // 2. FALLBACK : Films statiques complets (12 films)
+      console.log(`📁 [Fallback] ${staticFilms.length} films statiques chargés`);
+      setFilms(staticFilms); // Utiliser directement staticFilms qui contient déjà les 12 films
       setLoading(false);
     }
   };
