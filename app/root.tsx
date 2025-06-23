@@ -34,46 +34,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
         
-        {/* Service Worker */}gle Analytics GA4 */}
+        {/* Service Worker */}
         <script dangerouslySetInnerHTML={{
-          __html: `async
-            if ('serviceWorker' in navigator) {https://www.googletagmanager.com/gtag/js?id=G-7Q0QCDDQ0W"
+          __html: `
+            if ('serviceWorker' in navigator) {
               window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js');
               });
             }
-          `ow.dataLayer || [];
-        }} />arguments);}
-gtag('js', new Date());
-        {/* Google Analytics GA4 */}  gtag('config', 'G-7Q0QCDDQ0W');
-        <script  `,
+          `
+        }} />
+
+        {/* Google Analytics GA4 */}
+        <script
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-7Q0QCDDQ0W"
         />
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];der>
-              function gtag(){dataLayer.push(arguments);}llRestoration />
-              gtag('js', new Date());ripts />
-              gtag('config', 'G-7Q0QCDDQ0W');  </body>
-            `,   </html>
-          }}  );
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-7Q0QCDDQ0W');
+            `,
+          }}
         />
       </head>
-      <body>xport default function App() {
-        <FilmProvider>  return <Outlet />;
+      <body>
+        <FilmProvider>
+          {children}
+        </FilmProvider>
+        <ScrollRestoration />
+        <Scripts />
+      </body>
+    </html>
+  );
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-}  return <Outlet />;export default function App() {}  );    </html>      </body>        <Scripts />        <ScrollRestoration />        </FilmProvider>          {children}}
+export default function App() {
+  return <Outlet />;
+}
