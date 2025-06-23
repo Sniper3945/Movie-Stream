@@ -7,9 +7,9 @@ export const handler = async (event, context) => {
     film4: "https://0x0.st/8IJ8.mp4", // Un Homme et Une Femme
     film5: "https://0x0.st/8IId.mp4", // Le Samouraï
     film6: "https://0x0.st/8IvB.mp4", // Clan des sciciliens
-    film7: "https://0x0.st/AAAA.mp4", // À remplacer par ton lien
-    film8: "https://0x0.st/BBBB.mp4", // À remplacer par ton lien
-    film9: "https://0x0.st/CCCC.mp4", // À remplacer par ton lien
+    film7: "https://0x0.st/8ICS.mp4", // Orange Méchanique
+    film8: "https://0x0.st/8ICg.mp4", // Les Dents de la mer
+    film9: "https://0x0.st/8IC1.mp4", // Taxi Driver
     film10: "https://0x0.st/8Iv1.mp4", // The Usual Suspect
   };
 
