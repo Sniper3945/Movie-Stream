@@ -41,34 +41,50 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchFilms = async () => {
+    // Charger immédiatement les données statiques
+    const completeStaticFilms = [
+      ...staticFilms,
+      {
+        id: "film11",
+        title: "Apocalypse Now",
+        cover: "/assets/apocalypse-now-cover.png",
+        duration: "3h 02min",
+        description: "Chef-d'œuvre de Francis Ford Coppola sur la guerre du Vietnam.",
+        year: 1979,
+        genre: ["Drame", "Guerre"],
+      },
+      {
+        id: "film12",
+        title: "8½",
+        cover: "/assets/huit et demie.png",
+        duration: "2h 18min",
+        description: "Fellini explore la crise créative d'un réalisateur.",
+        year: 1963,
+        genre: ["Drame", "Comédie"],
+      }
+    ];
+
+    // Affichage immédiat des films statiques
+    setFilms(completeStaticFilms);
+    setLoading(false);
+
+    // Tentative MongoDB en arrière-plan (sans bloquer l'UI)
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Réduire le timeout pour accélérer le fallback
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 secondes seulement
+      setTimeout(() => controller.abort(), 3000); // 3s max
       
       const response = await fetch('/.netlify/functions/get-films', {
         signal: controller.signal
       });
       
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch films from MongoDB');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Films MongoDB chargés en arrière-plan:', data.length);
+        setFilms(data); // Remplacer les données statiques par MongoDB
       }
-      
-      const data = await response.json();
-      console.log('Films récupérés:', data);
-      setFilms(data);
     } catch (err) {
-      // Fallback rapide aux données statiques
-      console.warn('Using static data as fallback:', err);
-      setFilms(staticFilms);
-      setError(null);
-    } finally {
-      setLoading(false);
+      console.log('💾 Utilisation des données statiques (MongoDB indisponible)');
+      // Garder les données statiques, pas d'erreur
     }
   };
 

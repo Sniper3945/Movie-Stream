@@ -57,10 +57,14 @@ exports.handler = async (event, context) => {
 
   try {
     console.log("🔄 Attempting MongoDB connection...");
+    console.log("📋 MONGODB_URI exists:", !!MONGODB_URI);
 
-    // Add timeout to prevent hanging
+    // Augmenter le timeout MongoDB pour correspondre au timeout client
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("MongoDB connection timeout")), 15000)
+      setTimeout(
+        () => reject(new Error("MongoDB connection timeout after 20s")),
+        20000
+      )
     );
 
     await Promise.race([connectDB(), timeoutPromise]);
@@ -68,6 +72,11 @@ exports.handler = async (event, context) => {
 
     const films = await Film.find().sort({ createdAt: 1 });
     console.log(`📋 Found ${films.length} films in database`);
+
+    if (films.length === 0) {
+      console.warn("⚠️ No films found in MongoDB, returning fallback");
+      throw new Error("No films in database");
+    }
 
     // Transform films
     const transformedFilms = films.map((film) => ({
@@ -81,13 +90,14 @@ exports.handler = async (event, context) => {
       videoUrl: film.videoUrl,
     }));
 
+    console.log("✅ Returning", transformedFilms.length, "transformed films");
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify(transformedFilms),
     };
   } catch (error) {
-    console.error("❌ Error in get-films:", error);
+    console.error("❌ Error in get-films:", error.message);
 
     // Return complete fallback response with all films
     const fallbackFilms = [

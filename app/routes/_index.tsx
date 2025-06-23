@@ -61,9 +61,14 @@ export default function Index() {
                 <img 
                   src={film.cover} 
                   alt={film.title}
+                  loading="lazy" // Lazy loading natif
                   className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-100"
                   onError={(e) => {
                     e.currentTarget.src = '/assets/placeholder.png';
+                  }}
+                  style={{
+                    minHeight: '300px', // Évite le layout shift
+                    backgroundColor: '#1f2937' // Placeholder gris
                   }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 md:hidden">

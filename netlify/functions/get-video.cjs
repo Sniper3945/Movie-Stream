@@ -55,6 +55,9 @@ exports.handler = async (event, context) => {
     film8: "https://0x0.st/8ICg.mp4", // Les Dents de la mer
     film9: "https://0x0.st/8IC1.mp4", // Taxi Driver
     film10: "https://0x0.st/8Iv1.mp4", // The Usual Suspect
+    // Ajout des liens pour les nouveaux films si vous les avez
+    film11: "https://exemple.com/apocalypse-now.mp4", // Remplacez par votre vraie URL
+    film12: "https://exemple.com/huit-et-demie.mp4", // Remplacez par votre vraie URL
   };
 
   const { id } = event.queryStringParameters || {};

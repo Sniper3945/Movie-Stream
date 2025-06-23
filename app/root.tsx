@@ -12,15 +12,17 @@ import "./tailwind.css";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
-  {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
-  },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-  },
+  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+  { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" },
+  
+  // Précharger les images critiques (première rangée)
+  { rel: "preload", href: "/assets/film1.png", as: "image" },
+  { rel: "preload", href: "/assets/film2.png", as: "image" },
+  { rel: "preload", href: "/assets/film3.png", as: "image" },
+  { rel: "preload", href: "/assets/film4.png", as: "image" },
+  
+  // DNS prefetch pour les domaines externes
+  { rel: "dns-prefetch", href: "https://0x0.st" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -32,33 +34,46 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
         
-        {/* Google Analytics GA4 */}
-        <script
+        {/* Service Worker */}gle Analytics GA4 */}
+        <script dangerouslySetInnerHTML={{
+          __html: `async
+            if ('serviceWorker' in navigator) {https://www.googletagmanager.com/gtag/js?id=G-7Q0QCDDQ0W"
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+              });
+            }
+          `ow.dataLayer || [];
+        }} />arguments);}
+gtag('js', new Date());
+        {/* Google Analytics GA4 */}  gtag('config', 'G-7Q0QCDDQ0W');
+        <script  `,
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-7Q0QCDDQ0W"
         />
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-7Q0QCDDQ0W');
-            `,
-          }}
+              window.dataLayer = window.dataLayer || [];der>
+              function gtag(){dataLayer.push(arguments);}llRestoration />
+              gtag('js', new Date());ripts />
+              gtag('config', 'G-7Q0QCDDQ0W');  </body>
+            `,   </html>
+          }}  );
         />
       </head>
-      <body>
-        <FilmProvider>
-          {children}
-        </FilmProvider>
-        <ScrollRestoration />
-        <Scripts />
-      </body>
-    </html>
-  );
-}
+      <body>xport default function App() {
+        <FilmProvider>  return <Outlet />;
 
-export default function App() {
-  return <Outlet />;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+}  return <Outlet />;export default function App() {}  );    </html>      </body>        <Scripts />        <ScrollRestoration />        </FilmProvider>          {children}}
