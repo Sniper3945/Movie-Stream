@@ -1,31 +1,16 @@
 [build]
+  publish = "build/client"
   command = "npm run build"
-  publish = "build/client"
-  functions = "netlify/functions"
-
-[build.environment]
-  NODE_VERSION = "18"
-
-[dev]
-  framework = "#custom"
-  command = "npm run dev"
-  targetPort = 8888
-  port = 8080
-  publish = "build/client"
-  functions = "netlify/functions"
 
 [functions]
   node_bundler = "esbuild"
-  timeout = 5
 
-# Cache optimisé pour les assets
 [[headers]]
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
     Access-Control-Allow-Origin = "*"
 
-# Fonctions optimisées
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
@@ -40,6 +25,21 @@
 [[headers]]
   for = "*.css"
   [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Compression
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    # Force compression
+    Accept-Encoding = "gzip, br"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
     Cache-Control = "public, max-age=31536000, immutable"
 
 # Compression
