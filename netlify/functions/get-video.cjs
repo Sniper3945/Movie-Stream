@@ -33,9 +33,19 @@ const connectDB = async () => {
 };
 
 exports.handler = async (event, context) => {
-  // Static video links for existing films (fallback)
+  const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Cache-Control": "no-cache",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers };
+  }
+
   const staticVideoLinks = {
-    film1: "https://0x0.st/8IpD.mp4", // Gainsbourg
+    film1: "https://0x0.st/8IpD.mp4",
     film2: "https://0x0.st/8Ipf.mp4", // L'affaire Thomas Crown
     film3: "https://0x0.st/8IpQ.mp4", // La piscine
     film4: "https://0x0.st/8IJ8.mp4", // Un Homme et Une Femme
@@ -52,55 +62,44 @@ exports.handler = async (event, context) => {
   if (!id) {
     return {
       statusCode: 400,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ error: "ID manquant" }),
     };
   }
 
-  try {
-    // Try to get video URL from MongoDB first (for new films)
-    await connectDB();
+  console.log(`🎬 Video request for: ${id}`);
 
-    // Check if it's a MongoDB ObjectId (24 hex characters) or old format
-    if (id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+  // Try MongoDB first only if ID looks like MongoDB ObjectId
+  if (id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id)) {
+    try {
+      await connectDB();
       const film = await Film.findById(id);
 
       if (film && film.videoUrl) {
+        console.log(`✅ Found MongoDB video: ${film.videoUrl}`);
         return {
           statusCode: 302,
-          headers: {
-            Location: film.videoUrl,
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "no-cache",
-          },
+          headers: { ...headers, Location: film.videoUrl },
         };
       }
+    } catch (error) {
+      console.warn("⚠️ MongoDB error:", error);
     }
-  } catch (error) {
-    // Continue to fallback
   }
 
-  // Fallback to static links for existing films
+  // Fallback to static links
   if (staticVideoLinks[id]) {
+    console.log(`✅ Using static video: ${staticVideoLinks[id]}`);
     return {
       statusCode: 302,
-      headers: {
-        Location: staticVideoLinks[id],
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "no-cache",
-      },
+      headers: { ...headers, Location: staticVideoLinks[id] },
     };
   }
 
+  console.log(`❌ Video not found for: ${id}`);
   return {
     statusCode: 404,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({ error: "Film non trouvé" }),
   };
 };
