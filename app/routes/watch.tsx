@@ -198,9 +198,9 @@ export default function Watch({ params }: Route.ComponentProps) {
               Votre navigateur ne supporte pas la lecture vidéo.
             </video>
             
-            {/* AJOUT: Loader overlay pour la vidéo */}
+            {/* AJOUT: Loader overlay pour la vidéo - DESKTOP SEULEMENT */}
             {videoLoading && (
-              <div className="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center rounded-lg">
+              <div className="absolute inset-0 bg-black bg-opacity-80 items-center justify-center rounded-lg hidden md:flex">
                 <div className="text-center">
                   <div className="w-16 h-16 border-4 border-teal-400 border-t-transparent border-solid rounded-full animate-spin mx-auto mb-4"></div>
                   <p className="text-teal-400 text-lg font-medium">Chargement du lecteur...</p>

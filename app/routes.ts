@@ -4,5 +4,5 @@ export default [
   index("routes/_index.tsx"),
   route("watch/:id", "routes/watch.tsx"),
   route("admin/ajout", "routes/admin.ajout.tsx"),
-  route("*", "routes/$.tsx"),
+  route("debug", "routes/debug.tsx"), // Nouvelle route debug
 ] satisfies RouteConfig;
