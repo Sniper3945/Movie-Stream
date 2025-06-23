@@ -1,9 +1,39 @@
 import { useState, useEffect } from 'react';
 
+interface EnvData {
+  environmentVariables: {
+    [key: string]: string;
+  };
+  mongoDetails?: {
+    app_uri: string;
+    admin_uri: string;
+  };
+  timestamp: string;
+  region: string;
+}
+
+interface MongoTest {
+  success?: boolean;
+  message?: string;
+  details?: any;
+  error?: string;
+}
+
+interface IpData {
+  message: string;
+  detectedIPs: any;
+  recommendation?: {
+    primary: string;
+    action: string;
+  };
+  netlifyRegion: string;
+  timestamp: string;
+}
+
 export default function Debug() {
-  const [envData, setEnvData] = useState(null);
-  const [mongoTest, setMongoTest] = useState(null);
-  const [ipData, setIpData] = useState(null);
+  const [envData, setEnvData] = useState<EnvData | null>(null);
+  const [mongoTest, setMongoTest] = useState<MongoTest | null>(null);
+  const [ipData, setIpData] = useState<IpData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
