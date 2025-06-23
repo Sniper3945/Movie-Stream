@@ -41,7 +41,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchFilms = async () => {
-    // Charger immédiatement les données statiques complètes
+    // Charger TOUJOURS les 12 films statiques d'abord
     const completeStaticFilms: Film[] = [
       ...staticFilms,
       {
@@ -66,32 +66,39 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
       }
     ];
 
-    // Affichage instantané - site toujours fonctionnel
-    console.log('🚀 Affichage immédiat de', completeStaticFilms.length, 'films');
+    // Toujours afficher 12 films immédiatement
+    console.log('🚀 Chargement de', completeStaticFilms.length, 'films statiques');
     setFilms(completeStaticFilms);
     setLoading(false);
 
-    // Tentative MongoDB en arrière-plan (très rapide)
+    // Test MongoDB en arrière-plan
     setTimeout(async () => {
       try {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), 1000); // 1 seconde max
+        console.log('📡 Testing MongoDB connection...');
         
-        const response = await fetch('/.netlify/functions/get-films', {
-          signal: controller.signal
-        });
+        const response = await fetch('/.netlify/functions/test-mongo-simple');
+        const result = await response.json();
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.length > completeStaticFilms.length) {
-            console.log('✅ MongoDB data updated:', data.length, 'films');
-            setFilms(data);
+        if (result.success) {
+          console.log('✅ MongoDB OK, trying to get films...');
+          
+          // Si MongoDB fonctionne, essayer de récupérer les films
+          const filmsResponse = await fetch('/.netlify/functions/get-films');
+          const filmsData = await filmsResponse.json();
+          
+          if (filmsData.length > 0) {
+            console.log('✅ MongoDB films loaded:', filmsData.length);
+            setFilms(filmsData);
+          } else {
+            console.log('💾 MongoDB empty, keeping static films');
           }
+        } else {
+          console.log('❌ MongoDB test failed:', result.error);
         }
       } catch (err) {
-        console.log('💾 Static data kept (MongoDB unavailable)');
+        console.log('💾 MongoDB unavailable, keeping static films');
       }
-    }, 50); // Délai minimal
+    }, 100);
   };
 
   useEffect(() => {
