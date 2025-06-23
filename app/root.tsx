@@ -34,12 +34,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
         
+        {/* Fix pour les modules ES6 */}
+        <script type="module" dangerouslySetInnerHTML={{
+          __html: `
+            // Fix pour les modules ES6
+            if (!window.process) {
+              window.process = { env: {} };
+            }
+          `
+        }} />
+
         {/* Service Worker */}
         <script dangerouslySetInnerHTML={{
           __html: `
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js');
+                navigator.serviceWorker.register('/sw.js').catch(err => {
+                  console.log('SW registration failed');
+                });
               });
             }
           `

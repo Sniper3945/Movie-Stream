@@ -1,19 +1,21 @@
 import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [reactRouter(), tsconfigPaths()],
-  server: {
-    port: 8888,
-    host: true
-  },
-  css: {
-    postcss: './postcss.config.js',
-  },
+  plugins: [reactRouter()],
   build: {
+    target: 'es2015',
     rollupOptions: {
-      external: ['crypto']
+      output: {
+        format: 'es',
+        entryFileNames: '[name]-[hash].js',
+        chunkFileNames: '[name]-[hash].js',
+        assetFileNames: '[name]-[hash].[ext]'
+      }
     }
+  },
+  server: {
+    port: 5173,
+    host: true
   }
 });
