@@ -11,6 +11,8 @@ const urlsToCache = [
   "/assets/film8.png",
   "/assets/film9.png",
   "/assets/film10.png",
+  "/assets/apocalypse-now-cover.png",
+  "/assets/huit et demie.png",
 ];
 
 self.addEventListener("install", (event) => {

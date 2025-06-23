@@ -46,18 +46,18 @@ exports.handler = async (event, context) => {
 
   const staticVideoLinks = {
     film1: "https://0x0.st/8IpD.mp4",
-    film2: "https://0x0.st/8Ipf.mp4", // L'affaire Thomas Crown
-    film3: "https://0x0.st/8IpQ.mp4", // La piscine
-    film4: "https://0x0.st/8IJ8.mp4", // Un Homme et Une Femme
-    film5: "https://0x0.st/8IId.mp4", // Le Samouraï
-    film6: "https://0x0.st/8IvB.mp4", // Clan des siciliens
-    film7: "https://0x0.st/8ICS.mp4", // Orange Méchanique
-    film8: "https://0x0.st/8ICg.mp4", // Les Dents de la mer
-    film9: "https://0x0.st/8IC1.mp4", // Taxi Driver
-    film10: "https://0x0.st/8Iv1.mp4", // The Usual Suspect
-    // Ajout des liens pour les nouveaux films si vous les avez
-    film11: "https://exemple.com/apocalypse-now.mp4", // Remplacez par votre vraie URL
-    film12: "https://exemple.com/huit-et-demie.mp4", // Remplacez par votre vraie URL
+    film2: "https://0x0.st/8Ipf.mp4",
+    film3: "https://0x0.st/8IpQ.mp4",
+    film4: "https://0x0.st/8IJ8.mp4",
+    film5: "https://0x0.st/8IId.mp4",
+    film6: "https://0x0.st/8IvB.mp4",
+    film7: "https://0x0.st/8ICS.mp4",
+    film8: "https://0x0.st/8ICg.mp4",
+    film9: "https://0x0.st/8IC1.mp4",
+    film10: "https://0x0.st/8Iv1.mp4",
+    // Ajouter les liens pour les nouveaux films
+    film11: "https://0x0.st/8lrT.mp4",
+    film12: "https://0x0.st/8lzm.mp4",
   };
 
   const { id } = event.queryStringParameters || {};

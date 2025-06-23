@@ -15,7 +15,7 @@ export default function Watch({ params }: Route.ComponentProps) {
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
-  const [videoLoading, setVideoLoading] = useState<boolean>(true); // AJOUT
+  const [videoLoading, setVideoLoading] = useState<boolean>(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const { getFilmById } = useFilms();
@@ -36,37 +36,69 @@ export default function Watch({ params }: Route.ComponentProps) {
     try {
       // If film has direct videoUrl from MongoDB, use it immediately
       if (film && film.videoUrl) {
-        console.log('Using direct videoUrl:', film.videoUrl);
+        console.log('✅ Using direct videoUrl from MongoDB:', film.videoUrl);
         setVideoUrl(film.videoUrl);
         setLoading(false);
         return;
       }
       
-      // Otherwise, use the function (for old films)
-      console.log('Fetching video URL for:', filmId);
-      const functionUrl = `/.netlify/functions/get-video?id=${filmId}`;
-      const response = await fetch(functionUrl);
-      
-      console.log('Response status:', response.status);
-      
-      if (response.status === 302) {
-        const location = response.headers.get('Location');
-        console.log('Redirect to:', location);
-        setVideoUrl(location || '');
-      } else if (response.ok) {
-        // Try to get JSON response
-        const data = await response.json();
-        console.log('Response data:', data);
-        if (data.videoUrl) {
-          setVideoUrl(data.videoUrl);
+      // Fallback: Use static video links directly without function call
+      const staticVideoLinks: Record<string, string> = {
+        film1: "https://0x0.st/8IpD.mp4",
+        film2: "https://0x0.st/8Ipf.mp4",
+        film3: "https://0x0.st/8IpQ.mp4",
+        film4: "https://0x0.st/8IJ8.mp4",
+        film5: "https://0x0.st/8IId.mp4",
+        film6: "https://0x0.st/8IvB.mp4",
+        film7: "https://0x0.st/8ICS.mp4",
+        film8: "https://0x0.st/8ICg.mp4",
+        film9: "https://0x0.st/8IC1.mp4",
+        film10: "https://0x0.st/8Iv1.mp4",
+        film11: "https://0x0.st/8lrT.mp4", // Apocalypse Now
+        film12: "https://0x0.st/8lzm.mp4", // 8½
+      };
+
+      // Try function first (for new MongoDB films)
+      try {
+        console.log('📡 Trying Netlify function for:', filmId);
+        const functionUrl = `/.netlify/functions/get-video?id=${filmId}`;
+        
+        // Create AbortController for timeout (compatible avec tous les navigateurs)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const response = await fetch(functionUrl, { 
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.status === 302) {
+          const location = response.headers.get('Location');
+          if (location) {
+            console.log('✅ Function redirect to:', location);
+            setVideoUrl(location);
+            setLoading(false);
+            return;
+          }
         }
-      } else {
-        throw new Error(`HTTP ${response.status}`);
+      } catch (functionError) {
+        console.warn('⚠️ Function failed, using static fallback:', functionError);
       }
       
-      setLoading(false);
+      // Fallback to static links
+      if (staticVideoLinks[filmId]) {
+        console.log('✅ Using static video link:', staticVideoLinks[filmId]);
+        setVideoUrl(staticVideoLinks[filmId]);
+        setLoading(false);
+        return;
+      }
+      
+      // Last resort error
+      throw new Error(`No video found for ${filmId}`);
+      
     } catch (err) {
-      console.error('Error fetching video URL:', err);
+      console.error('❌ Error fetching video URL:', err);
       setError('Erreur lors du chargement de la vidéo');
       setLoading(false);
     }
@@ -109,7 +141,7 @@ export default function Watch({ params }: Route.ComponentProps) {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-3 border-teal-400 border-t-transparent border-solid rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl">Chargement de la vidéo...</p>
+          <p className="text-xl">Préparation de la vidéo...</p>
         </div>
       </div>
     );
