@@ -41,7 +41,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchFilms = async () => {
-    // Afficher les films statiques immédiatement (fallback)
+    // 1. Charger immédiatement les 12 films statiques (film1.png à film12.png)
     const completeStaticFilms: Film[] = [
       ...staticFilms,
       {
@@ -66,34 +66,56 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
       }
     ];
 
-    console.log('🚀 Affichage immédiat de', completeStaticFilms.length, 'films statiques');
+    // Affichage instantané - utilisable immédiatement
+    console.log('⚡ Chargement instantané:', completeStaticFilms.length, 'films statiques');
     setFilms(completeStaticFilms);
     setLoading(false);
 
-    // Tentative MongoDB pour récupérer les vraies données
-    setTimeout(async () => {
-      try {
-        console.log('📡 Fetching MongoDB films with metadata...');
-        
-        const response = await fetch('/.netlify/functions/get-films');
-        
-        if (response.ok) {
-          const mongoFilms = await response.json();
-          
-          if (mongoFilms.length > 0) {
-            console.log('✅ MongoDB films loaded:', mongoFilms.length);
-            // Remplacer complètement par les données MongoDB (qui incluent covers depuis /assets)
-            setFilms(mongoFilms);
-          } else {
-            console.log('💾 MongoDB empty, keeping static films');
+    // 2. Tentative MongoDB avec timeout strict de 4s
+    const startTime = performance.now();
+    
+    const mongoTimeoutPromise = new Promise<Film[]>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        console.log('⏱️ MongoDB timeout après 4s - conserve les films statiques');
+        reject(new Error('MongoDB timeout'));
+      }, 4000); // 4 secondes MAX
+
+      fetch('/.netlify/functions/get-films')
+        .then(response => {
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            return response.json();
           }
-        } else {
-          console.log('⚠️ MongoDB request failed, keeping static films');
-        }
-      } catch (err) {
-        console.log('💾 MongoDB unavailable, keeping static films');
+          throw new Error(`HTTP ${response.status}`);
+        })
+        .then(mongoFilms => {
+          clearTimeout(timeoutId);
+          resolve(mongoFilms);
+        })
+        .catch(error => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
+    });
+
+    // 3. Essayer MongoDB en arrière-plan
+    try {
+      const mongoFilms = await mongoTimeoutPromise;
+      const loadTime = (performance.now() - startTime).toFixed(0);
+      
+      if (mongoFilms.length > 0) {
+        // Combiner films statiques + MongoDB (film13.png, film14.png, etc.)
+        const allFilms = [...completeStaticFilms, ...mongoFilms];
+        console.log(`✅ MongoDB chargé en ${loadTime}ms:`, mongoFilms.length, 'nouveaux films');
+        console.log(`📊 Total: ${allFilms.length} films (${completeStaticFilms.length} statiques + ${mongoFilms.length} MongoDB)`);
+        setFilms(allFilms);
+      } else {
+        console.log('💾 MongoDB vide - films statiques conservés');
       }
-    }, 100);
+    } catch (error) {
+      console.log('💾 MongoDB indisponible - films statiques conservés');
+      // Les films statiques sont déjà affichés, rien à faire
+    }
   };
 
   useEffect(() => {

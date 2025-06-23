@@ -64,11 +64,11 @@ export default function Index() {
                   loading="lazy"
                   className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-100"
                   onError={(e) => {
-                    // Fallback pour les films MongoDB sans cover
-                    if (e.currentTarget.src.includes('mongodb-')) {
-                      e.currentTarget.src = '/assets/placeholder-mongodb.png';
-                    } else {
-                      e.currentTarget.src = '/assets/placeholder.png';
+                    const img = e.currentTarget;
+                    
+                    // Fallback pour tous les films - placeholder standard
+                    if (!img.src.includes('placeholder.png')) {
+                      img.src = '/assets/placeholder.png';
                     }
                   }}
                   style={{
@@ -99,5 +99,4 @@ export default function Index() {
     </div>
   );
 }
-
 

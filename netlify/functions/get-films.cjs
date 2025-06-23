@@ -70,40 +70,43 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    console.log("🚀 Function started - get-films (READ-ONLY)");
+    console.log("🚀 Function started - get-films (optimized)");
 
+    // Connexion MongoDB rapide
     await Promise.race([
       connectDB(),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("MongoDB timeout after 4s")), 4000)
+        setTimeout(() => reject(new Error("MongoDB timeout 2s")), 2000)
       ),
     ]);
 
-    // Récupérer seulement les métadonnées (coverUrl n'existe plus)
+    // Query rapide
     const films = await Promise.race([
       Film.find().sort({ createdAt: 1 }).lean(),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Query timeout")), 3000)
+        setTimeout(() => reject(new Error("Query timeout 1s")), 1000)
       ),
     ]);
 
-    console.log(
-      `📋 Successfully fetched ${films.length} films metadata from MongoDB`
-    );
+    console.log(`📋 MongoDB films: ${films.length}`);
 
     if (films.length === 0) {
-      throw new Error("No films in database");
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify([]),
+      };
     }
 
-    // Transform films - utiliser les assets pour les covers
-    const transformedFilms = films.map((film) => {
-      // Générer le nom de cover basé sur l'ID MongoDB
-      const coverPath = `/assets/mongodb-${film._id.toString().slice(-6)}.png`;
+    // Transform avec pattern film[x].png automatique
+    const transformedFilms = films.map((film, index) => {
+      // Numérotation automatique : film13, film14, film15, etc.
+      const filmNumber = 13 + index; // Commence après les 12 films statiques
 
       return {
         id: film._id.toString(),
         title: film.title,
-        cover: coverPath, // Cover calculée depuis l'ID
+        cover: `/assets/film${filmNumber}.png`, // Pattern standard film[x].png
         duration: film.duration,
         description: film.description,
         year: film.year,
@@ -113,8 +116,9 @@ exports.handler = async (event, context) => {
     });
 
     console.log(
-      "✅ Returning lightweight MongoDB films:",
-      transformedFilms.length
+      "✅ Returning",
+      transformedFilms.length,
+      "films with auto covers"
     );
     return {
       statusCode: 200,
@@ -122,9 +126,9 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(transformedFilms),
     };
   } catch (error) {
-    console.error("❌ MongoDB failed, fallback to empty array");
+    console.log("❌ MongoDB failed:", error.message);
 
-    // Retourner tableau vide - FilmContext utilisera les données statiques
+    // Retourner tableau vide = utiliser films statiques
     return {
       statusCode: 200,
       headers,

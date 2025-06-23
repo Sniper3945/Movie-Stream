@@ -247,7 +247,6 @@ exports.handler = async (event, context) => {
       duration: formData.duration,
       year: parseInt(formData.year) || new Date().getFullYear(),
       genre: formData.genre,
-      // coverUrl: SUPPRIMÉ - plus besoin de stocker les covers
       description,
       videoUrl,
     };
@@ -256,17 +255,11 @@ exports.handler = async (event, context) => {
 
     console.log("Saving to database...");
     const savedFilm = await film.save();
-    console.log(`✅ Film saved via ADMIN user: ${savedFilm._id}`);
+    console.log(`✅ Film saved: ${savedFilm._id}`);
 
-    // Instructions pour l'admin sur la cover
-    const coverInstructions = {
-      message: "Film ajouté avec succès",
-      instructions: `Pour la cover, ajoutez le fichier image dans /public/assets/ avec le nom: mongodb-${savedFilm._id
-        .toString()
-        .slice(-6)}.png`,
-      coverFilename: `mongodb-${savedFilm._id.toString().slice(-6)}.png`,
-      filmId: savedFilm._id,
-    };
+    // Note pour l'admin sur le pattern de cover
+    const filmCount = await Film.countDocuments();
+    const filmNumber = 12 + filmCount; // Commence après les 12 films statiques
 
     return {
       statusCode: 200,
@@ -276,8 +269,11 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: true,
-        ...coverInstructions,
+        message: "Film ajouté avec succès",
+        filmId: savedFilm._id,
         title: savedFilm.title,
+        coverFilename: `film${filmNumber}.png`,
+        note: `Ajoutez la cover dans /public/assets/film${filmNumber}.png`,
       }),
     };
   } catch (error) {

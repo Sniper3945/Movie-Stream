@@ -25,7 +25,7 @@ const encryptData = (data: string): string => {
 export default function AdminAjout() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<FilmForm>({
     title: '',
     duration: '',
@@ -49,7 +49,6 @@ export default function AdminAjout() {
     e.preventDefault();
     
     try {
-      // Verify password with backend
       const response = await fetch('/.netlify/functions/admin-auth', {
         method: 'POST',
         headers: {
@@ -92,7 +91,7 @@ export default function AdminAjout() {
 
       const formData = new FormData();
       
-      // Encrypt sensitive data with improved encoding
+      // Encrypt sensitive data
       formData.append('title', encryptData(form.title));
       formData.append('duration', form.duration);
       formData.append('year', form.year.toString());
@@ -114,23 +113,29 @@ export default function AdminAjout() {
       if (result.success) {
         setMessage(`✅ ${result.message}`);
         if (result.coverFilename) {
-          setMessage(prev => prev + `\n\n📁 Cover à ajouter: /public/assets/${result.coverFilename}`);
+          setMessage(prev => prev + `\n\n📁 Ajoutez le fichier: /public/assets/${result.coverFilename}`);
         }
         
         // Reset form
-        setFormData({
+        setForm({
           title: '',
           duration: '',
-          year: '',
+          year: new Date().getFullYear(),
           genre: '',
           description: '',
+          cover: null,
           url: ''
         });
-        setCover(null);
+        
+        // Reset file input
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) {
+          fileInput.value = '';
+        }
       } else {
         setMessage(`❌ ${result.error}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       setMessage(`❌ Erreur: ${error.message}`);
     } finally {
       setSubmitting(false);
@@ -278,16 +283,16 @@ export default function AdminAjout() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="w-full bg-red-500 hover:bg-red-600 p-3 rounded-lg font-bold disabled:opacity-50"
           >
-            {loading ? 'Ajout en cours...' : 'Ajouter le Film'}
+            {submitting ? 'Ajout en cours...' : 'Ajouter le Film'}
           </button>
 
           {message && (
-            <p className={`text-center ${message.includes('succès') ? 'text-green-400' : 'text-red-400'}`}>
+            <div className={`p-4 rounded-lg text-center whitespace-pre-line ${message.includes('succès') ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
               {message}
-            </p>
+            </div>
           )}
         </form>
       </div>
