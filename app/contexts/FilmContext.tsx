@@ -41,7 +41,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const fetchFilms = async () => {
-    // Charger TOUJOURS les 12 films statiques d'abord
+    // Afficher les films statiques immédiatement (fallback)
     const completeStaticFilms: Film[] = [
       ...staticFilms,
       {
@@ -66,34 +66,29 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
       }
     ];
 
-    // Toujours afficher 12 films immédiatement
-    console.log('🚀 Chargement de', completeStaticFilms.length, 'films statiques');
+    console.log('🚀 Affichage immédiat de', completeStaticFilms.length, 'films statiques');
     setFilms(completeStaticFilms);
     setLoading(false);
 
-    // Test MongoDB en arrière-plan
+    // Tentative MongoDB pour récupérer les vraies données
     setTimeout(async () => {
       try {
-        console.log('📡 Testing MongoDB connection...');
+        console.log('📡 Fetching MongoDB films with metadata...');
         
-        const response = await fetch('/.netlify/functions/test-mongo-simple');
-        const result = await response.json();
+        const response = await fetch('/.netlify/functions/get-films');
         
-        if (result.success) {
-          console.log('✅ MongoDB OK, trying to get films...');
+        if (response.ok) {
+          const mongoFilms = await response.json();
           
-          // Si MongoDB fonctionne, essayer de récupérer les films
-          const filmsResponse = await fetch('/.netlify/functions/get-films');
-          const filmsData = await filmsResponse.json();
-          
-          if (filmsData.length > 0) {
-            console.log('✅ MongoDB films loaded:', filmsData.length);
-            setFilms(filmsData);
+          if (mongoFilms.length > 0) {
+            console.log('✅ MongoDB films loaded:', mongoFilms.length);
+            // Remplacer complètement par les données MongoDB (qui incluent covers depuis /assets)
+            setFilms(mongoFilms);
           } else {
             console.log('💾 MongoDB empty, keeping static films');
           }
         } else {
-          console.log('❌ MongoDB test failed:', result.error);
+          console.log('⚠️ MongoDB request failed, keeping static films');
         }
       } catch (err) {
         console.log('💾 MongoDB unavailable, keeping static films');

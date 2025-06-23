@@ -14,13 +14,13 @@ if (!MONGODB_URI || !ADMIN_PASSWORD || !ENCRYPTION_KEY) {
   });
 }
 
-// Film Schema with GridFS reference for large images
+// Film Schema WITHOUT coverUrl - covers handled by static assets
 const filmSchema = new mongoose.Schema({
   title: { type: String, required: true },
   duration: { type: String, required: true },
   year: { type: Number, required: true },
   genre: { type: String, required: true },
-  coverUrl: { type: String, required: true },
+  // coverUrl: SUPPRIMÉ - pas besoin dans la DB
   description: { type: String, required: true },
   videoUrl: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
@@ -225,8 +225,21 @@ exports.handler = async (event, context) => {
       description: description.substring(0, 50) + "...",
     });
 
-    console.log(`Processing image for film: ${title}`);
-    const coverUrl = await processImage(coverBuffer);
+    // Au lieu de sauvegarder l'image base64 dans MongoDB, la sauvegarder comme fichier
+    console.log("Processing cover image...");
+
+    // Sauvegarder la cover dans un nom de fichier basé sur le titre
+    const sanitizedTitle = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .substring(0, 30);
+
+    const coverFilename = `mongodb-${sanitizedTitle}.png`;
+
+    // Note: Dans un vrai projet, vous uploaderiez vers un CDN comme Cloudinary
+    // Pour l'instant, utilisez une cover par défaut
+    const coverUrl = `/assets/${coverFilename}`;
 
     console.log("Creating film document...");
     const filmData = {
@@ -234,7 +247,7 @@ exports.handler = async (event, context) => {
       duration: formData.duration,
       year: parseInt(formData.year) || new Date().getFullYear(),
       genre: formData.genre,
-      coverUrl,
+      // coverUrl: SUPPRIMÉ - plus besoin de stocker les covers
       description,
       videoUrl,
     };
@@ -245,6 +258,16 @@ exports.handler = async (event, context) => {
     const savedFilm = await film.save();
     console.log(`✅ Film saved via ADMIN user: ${savedFilm._id}`);
 
+    // Instructions pour l'admin sur la cover
+    const coverInstructions = {
+      message: "Film ajouté avec succès",
+      instructions: `Pour la cover, ajoutez le fichier image dans /public/assets/ avec le nom: mongodb-${savedFilm._id
+        .toString()
+        .slice(-6)}.png`,
+      coverFilename: `mongodb-${savedFilm._id.toString().slice(-6)}.png`,
+      filmId: savedFilm._id,
+    };
+
     return {
       statusCode: 200,
       headers: {
@@ -253,8 +276,7 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: true,
-        message: "Film ajouté avec succès",
-        filmId: savedFilm._id,
+        ...coverInstructions,
         title: savedFilm.title,
       }),
     };

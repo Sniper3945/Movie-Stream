@@ -72,7 +72,6 @@ exports.handler = async (event, context) => {
   try {
     console.log("🚀 Function started - get-films (READ-ONLY)");
 
-    // Timeout très court pour éviter les timeouts Netlify
     await Promise.race([
       connectDB(),
       new Promise((_, reject) =>
@@ -80,6 +79,7 @@ exports.handler = async (event, context) => {
       ),
     ]);
 
+    // Récupérer seulement les métadonnées (coverUrl n'existe plus)
     const films = await Promise.race([
       Film.find().sort({ createdAt: 1 }).lean(),
       new Promise((_, reject) =>
@@ -87,34 +87,44 @@ exports.handler = async (event, context) => {
       ),
     ]);
 
-    console.log(`📋 Successfully fetched ${films.length} films`);
+    console.log(
+      `📋 Successfully fetched ${films.length} films metadata from MongoDB`
+    );
 
     if (films.length === 0) {
       throw new Error("No films in database");
     }
 
-    // Transform films
-    const transformedFilms = films.map((film) => ({
-      id: film._id.toString(),
-      title: film.title,
-      cover: film.coverUrl,
-      duration: film.duration,
-      description: film.description,
-      year: film.year,
-      genre: film.genre.split(",").map((g) => g.trim()),
-      videoUrl: film.videoUrl,
-    }));
+    // Transform films - utiliser les assets pour les covers
+    const transformedFilms = films.map((film) => {
+      // Générer le nom de cover basé sur l'ID MongoDB
+      const coverPath = `/assets/mongodb-${film._id.toString().slice(-6)}.png`;
 
-    console.log("✅ Successfully returning", transformedFilms.length, "films");
+      return {
+        id: film._id.toString(),
+        title: film.title,
+        cover: coverPath, // Cover calculée depuis l'ID
+        duration: film.duration,
+        description: film.description,
+        year: film.year,
+        genre: film.genre.split(",").map((g) => g.trim()),
+        videoUrl: film.videoUrl,
+      };
+    });
+
+    console.log(
+      "✅ Returning lightweight MongoDB films:",
+      transformedFilms.length
+    );
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify(transformedFilms),
     };
   } catch (error) {
-    console.error("❌ MongoDB failed, fallback to client-side static data");
+    console.error("❌ MongoDB failed, fallback to empty array");
 
-    // Retourner un tableau vide - le FilmContext utilisera les données statiquesions longues
+    // Retourner tableau vide - FilmContext utilisera les données statiques
     return {
       statusCode: 200,
       headers,

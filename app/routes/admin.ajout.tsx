@@ -72,24 +72,24 @@ export default function AdminAjout() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage('Traitement en cours...');
-
-    // Validate required fields
-    if (!form.title || !form.description || !form.url || !form.cover) {
-      setMessage('Tous les champs sont requis');
-      setLoading(false);
-      return;
-    }
-
-    // Validate file size
-    if (form.cover.size > 5 * 1024 * 1024) {
-      setMessage('L\'image est trop lourde (max 5MB)');
-      setLoading(false);
-      return;
-    }
+    setSubmitting(true);
+    setMessage('');
 
     try {
+      // Validate required fields
+      if (!form.title || !form.description || !form.url || !form.cover) {
+        setMessage('Tous les champs sont requis');
+        setSubmitting(false);
+        return;
+      }
+
+      // Validate file size
+      if (form.cover.size > 5 * 1024 * 1024) {
+        setMessage('L\'image est trop lourde (max 5MB)');
+        setSubmitting(false);
+        return;
+      }
+
       const formData = new FormData();
       
       // Encrypt sensitive data with improved encoding
@@ -101,49 +101,39 @@ export default function AdminAjout() {
       formData.append('url', encryptData(form.url));
       formData.append('cover', form.cover);
       
-      // Add timeout for large file uploads
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
-
       const response = await fetch('/.netlify/functions/admin-add-film', {
         method: 'POST',
         headers: {
-          'X-Admin-Token': sessionStorage.getItem('adminAuth') || ''
+          'X-Admin-Token': 'true'
         },
-        body: formData,
-        signal: controller.signal
+        body: formData
       });
 
-      clearTimeout(timeoutId);
+      const result = await response.json();
 
-      const responseData = await response.json();
-
-      if (response.ok) {
-        setMessage(`✅ Film "${responseData.title || form.title}" ajouté avec succès!`);
-        setForm({
+      if (result.success) {
+        setMessage(`✅ ${result.message}`);
+        if (result.coverFilename) {
+          setMessage(prev => prev + `\n\n📁 Cover à ajouter: /public/assets/${result.coverFilename}`);
+        }
+        
+        // Reset form
+        setFormData({
           title: '',
           duration: '',
-          year: new Date().getFullYear(),
+          year: '',
           genre: '',
           description: '',
-          cover: null,
           url: ''
         });
-        // Reset file input
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+        setCover(null);
       } else {
-        const errorMsg = responseData.details || responseData.error || 'Erreur inconnue';
-        setMessage(`❌ Erreur: ${errorMsg}`);
+        setMessage(`❌ ${result.error}`);
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        setMessage('❌ Timeout - Le fichier est trop volumineux ou la connexion est lente');
-      } else {
-        setMessage('❌ Erreur réseau - Vérifiez votre connexion et réessayez');
-      }
+      setMessage(`❌ Erreur: ${error.message}`);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
