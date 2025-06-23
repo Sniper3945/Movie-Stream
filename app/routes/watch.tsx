@@ -15,6 +15,7 @@ export default function Watch({ params }: Route.ComponentProps) {
   const [videoUrl, setVideoUrl] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
+  const [videoLoading, setVideoLoading] = useState<boolean>(true); // AJOUT
   const videoRef = useRef<HTMLVideoElement>(null);
   
   const { getFilmById } = useFilms();
@@ -77,6 +78,20 @@ export default function Watch({ params }: Route.ComponentProps) {
     }
   };
 
+  // AJOUT des handlers pour le loader vidéo
+  const handleVideoLoadStart = (): void => {
+    setVideoLoading(true);
+  };
+
+  const handleVideoCanPlay = (): void => {
+    setVideoLoading(false);
+  };
+
+  const handleVideoError = (): void => {
+    setVideoLoading(false);
+    setError('Erreur lors du chargement de la vidéo');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -122,17 +137,34 @@ export default function Watch({ params }: Route.ComponentProps) {
       
       <div className="max-w-6xl mx-auto p-5">
         <div className="mb-8 relative">
-          <video 
-            ref={videoRef}
-            controls 
-            className="w-full aspect-video rounded-lg"
-            src={videoUrl}
-            onContextMenu={(e) => e.preventDefault()}
-            onPlay={handleVideoPlay}
-            onEnded={handleVideoEnded}
-          >
-            Votre navigateur ne supporte pas la lecture vidéo.
-          </video>
+          {/* MODIFICATION: Video Player avec loader */}
+          <div className="relative bg-black rounded-lg overflow-hidden">
+            <video 
+              ref={videoRef}
+              controls 
+              className="w-full aspect-video rounded-lg"
+              src={videoUrl}
+              onContextMenu={(e) => e.preventDefault()}
+              onPlay={handleVideoPlay}
+              onEnded={handleVideoEnded}
+              onLoadStart={handleVideoLoadStart}
+              onCanPlay={handleVideoCanPlay}
+              onError={handleVideoError}
+            >
+              Votre navigateur ne supporte pas la lecture vidéo.
+            </video>
+            
+            {/* AJOUT: Loader overlay pour la vidéo */}
+            {videoLoading && (
+              <div className="absolute inset-0 bg-black bg-opacity-80 flex items-center justify-center rounded-lg">
+                <div className="text-center">
+                  <div className="w-16 h-16 border-4 border-teal-400 border-t-transparent border-solid rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-teal-400 text-lg font-medium">Chargement du lecteur...</p>
+                  <p className="text-gray-400 text-sm mt-2">Préparation de la vidéo</p>
+                </div>
+              </div>
+            )}
+          </div>
           
           {/* Bouton plein écran visible uniquement sur desktop */}
           <button
