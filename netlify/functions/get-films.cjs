@@ -50,6 +50,9 @@ const connectDB = async () => {
 exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
+  const functionStartTime = Date.now();
+  console.log("🚀 [get-films] Function started at", new Date().toISOString());
+
   const headers = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
@@ -70,27 +73,52 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    console.log("🚀 Function started - get-films (optimized)");
+    console.log("🚀 [get-films] Function started at", new Date().toISOString());
+    console.log("📡 [get-films] Tentative de connexion MongoDB...");
+    const connectStartTime = Date.now();
 
-    // Connexion MongoDB rapide
+    // Connexion MongoDB avec timeout réduit pour éviter les lenteurs
     await Promise.race([
       connectDB(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("MongoDB timeout 2s")), 2000)
+      new Promise(
+        (_, reject) =>
+          setTimeout(() => {
+            console.log("❌ [get-films] MongoDB connection timeout après 1.5s");
+            reject(new Error("MongoDB connection timeout 1.5s"));
+          }, 1500) // Réduit à 1.5s pour éviter les 3.2s observés
       ),
     ]);
 
-    // Query rapide
+    const connectTime = Date.now() - connectStartTime;
+    console.log(`✅ [get-films] MongoDB connecté en ${connectTime}ms`);
+
+    console.log("🔍 [get-films] Exécution de la requête...");
+    const queryStartTime = Date.now();
+
+    // Query avec timeout très court
     const films = await Promise.race([
       Film.find().sort({ createdAt: 1 }).lean(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Query timeout 1s")), 1000)
+      new Promise(
+        (_, reject) =>
+          setTimeout(() => {
+            console.log("❌ [get-films] Query timeout après 500ms");
+            reject(new Error("Query timeout 500ms"));
+          }, 500) // Très court pour forcer l'efficacité
       ),
     ]);
 
-    console.log(`📋 MongoDB films: ${films.length}`);
+    const queryTime = Date.now() - queryStartTime;
+    const totalTime = Date.now() - functionStartTime;
+
+    console.log(
+      `📋 [get-films] Query terminée en ${queryTime}ms - ${films.length} films trouvés`
+    );
+    console.log(
+      `🎉 [get-films] SUCCÈS TOTAL en ${totalTime}ms - Retour de ${films.length} films`
+    );
 
     if (films.length === 0) {
+      console.log("⚠️ [get-films] Aucun film en base, retour tableau vide");
       return {
         statusCode: 200,
         headers,
@@ -100,13 +128,12 @@ exports.handler = async (event, context) => {
 
     // Transform avec pattern film[x].png automatique
     const transformedFilms = films.map((film, index) => {
-      // Numérotation automatique : film13, film14, film15, etc.
       const filmNumber = 13 + index; // Commence après les 12 films statiques
 
       return {
         id: film._id.toString(),
         title: film.title,
-        cover: `/assets/film${filmNumber}.png`, // Pattern standard film[x].png
+        cover: `/assets/film${filmNumber}.png`,
         duration: film.duration,
         description: film.description,
         year: film.year,
@@ -115,20 +142,16 @@ exports.handler = async (event, context) => {
       };
     });
 
-    console.log(
-      "✅ Returning",
-      transformedFilms.length,
-      "films with auto covers"
-    );
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify(transformedFilms),
     };
   } catch (error) {
-    console.log("❌ MongoDB failed:", error.message);
+    const totalTime = Date.now() - functionStartTime;
+    console.log(`❌ [get-films] ÉCHEC après ${totalTime}ms:`, error.message);
+    console.log(`💾 [get-films] Retour tableau vide pour fallback côté client`);
 
-    // Retourner tableau vide = utiliser films statiques
     return {
       statusCode: 200,
       headers,

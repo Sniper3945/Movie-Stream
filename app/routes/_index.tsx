@@ -17,18 +17,24 @@ export default function Index() {
     trackFilmClick(filmId, filmTitle);
   };
 
+  // Logging pour debug
+  console.log('🎬 [Index] Render - Films:', films.length, 'Loading:', loading, 'Error:', error);
+
   if (loading) {
+    console.log('⏳ [Index] Affichage du loader...');
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-3 border-teal-400 border-t-transparent border-solid rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-xl">Chargement des films...</p>
+          <p className="text-sm text-gray-400 mt-2">Tentative MongoDB en cours...</p>
         </div>
       </div>
     );
   }
 
   if (error) {
+    console.log('❌ [Index] Affichage erreur:', error);
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
@@ -38,6 +44,8 @@ export default function Index() {
       </div>
     );
   }
+
+  console.log('✅ [Index] Affichage des films:', films.map(f => f.title));
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-5">

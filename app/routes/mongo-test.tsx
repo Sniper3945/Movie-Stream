@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 
+interface TestResult {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  details?: any;
+  [key: string]: any;
+}
+
 export default function MongoTest() {
-  const [testResult, setTestResult] = useState(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -10,8 +18,11 @@ export default function MongoTest() {
         const response = await fetch('/.netlify/functions/test-mongo-simple');
         const result = await response.json();
         setTestResult(result);
-      } catch (error) {
-        setTestResult({ error: error.message });
+      } catch (error: any) {
+        setTestResult({ 
+          error: error.message || 'Unknown error',
+          success: false 
+        });
       } finally {
         setLoading(false);
       }
