@@ -7,8 +7,7 @@ interface FilmForm {
   year: number;
   genre: string;
   description: string;
-  cover: File | null;
-  url: string;
+  videoUrl: string;
 }
 
 // Simple encryption function - FIX pour les caractères spéciaux
@@ -32,8 +31,7 @@ export default function AdminAjout() {
     year: new Date().getFullYear(),
     genre: '',
     description: '',
-    cover: null,
-    url: ''
+    videoUrl: ''
   });
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
@@ -72,48 +70,40 @@ export default function AdminAjout() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    setMessage('');
 
     try {
       // Validate required fields
-      if (!form.title || !form.description || !form.url || !form.cover) {
+      if (!form.title || !form.description || !form.videoUrl) {
         setMessage('Tous les champs sont requis');
         setSubmitting(false);
         return;
       }
 
-      // Validate file size
-      if (form.cover.size > 5 * 1024 * 1024) {
-        setMessage('L\'image est trop lourde (max 5MB)');
-        setSubmitting(false);
-        return;
-      }
-
-      const formData = new FormData();
-      
-      // Encrypt sensitive data
-      formData.append('title', encryptData(form.title));
-      formData.append('duration', form.duration);
-      formData.append('year', form.year.toString());
-      formData.append('genre', form.genre);
-      formData.append('description', encryptData(form.description));
-      formData.append('url', encryptData(form.url));
-      formData.append('cover', form.cover);
+      // Use JSON instead of FormData since we're not uploading covers to MongoDB
+      const filmData = {
+        title: encryptData(form.title),
+        duration: form.duration,
+        year: form.year.toString(),
+        genre: form.genre,
+        description: encryptData(form.description),
+        videoUrl: encryptData(form.videoUrl)
+      };
       
       const response = await fetch('/.netlify/functions/admin-add-film', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-Admin-Token': 'true'
         },
-        body: formData
+        body: JSON.stringify(filmData)
       });
 
       const result = await response.json();
 
       if (result.success) {
         setMessage(`✅ ${result.message}`);
-        if (result.coverFilename) {
-          setMessage(prev => prev + `\n\n📁 Ajoutez le fichier: /public/assets/${result.coverFilename}`);
+        if (result.coverInstruction) {
+          setMessage(prev => prev + `\n\n📁 ${result.coverInstruction}`);
         }
         
         // Reset form
@@ -123,20 +113,17 @@ export default function AdminAjout() {
           year: new Date().getFullYear(),
           genre: '',
           description: '',
-          cover: null,
-          url: ''
+          videoUrl: ''
         });
-        
-        // Reset file input
-        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-        if (fileInput) {
-          fileInput.value = '';
-        }
       } else {
         setMessage(`❌ ${result.error}`);
       }
-    } catch (error: any) {
-      setMessage(`❌ Erreur: ${error.message}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        setMessage(`❌ Erreur: ${error.message}`);
+      } else {
+        setMessage('❌ Erreur inconnue');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -231,42 +218,14 @@ export default function AdminAjout() {
             <label className="block mb-2 font-bold">URL de la vidéo</label>
             <input
               type="url"
-              value={form.url}
-              onChange={(e) => setForm({...form, url: e.target.value})}
+              value={form.videoUrl}
+              onChange={(e) => setForm({...form, videoUrl: e.target.value})}
               placeholder="https://0x0.st/example.mp4"
               className="w-full p-3 bg-gray-800 rounded-lg"
               required
             />
             <p className="text-gray-400 text-sm mt-1">
               URL directe vers le fichier vidéo (0x0.st, etc.)
-            </p>
-          </div>
-
-          <div>
-            <label className="block mb-2 font-bold">Cover (PNG/JPG - Max 3MB)</label>
-            <input
-              type="file"
-              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                if (file) {
-                  const sizeKB = (file.size / 1024).toFixed(2);
-                  console.log(`Fichier sélectionné: ${file.name}, Taille: ${sizeKB}KB`);
-                  
-                  if (file.size > 3 * 1024 * 1024) {
-                    setMessage('Fichier trop lourd (max 3MB)');
-                    e.target.value = '';
-                    return;
-                  }
-                }
-                setForm({...form, cover: file});
-                setMessage('');
-              }}
-              className="w-full p-3 bg-gray-800 rounded-lg"
-              required
-            />
-            <p className="text-gray-400 text-sm mt-1">
-              Formats acceptés: PNG, JPG (max 3MB) - Vos images font entre 248KB et 997KB ✅
             </p>
           </div>
 
@@ -281,6 +240,16 @@ export default function AdminAjout() {
             />
           </div>
 
+          <div>
+            <label className="block mb-2 font-bold">Cover (Information)</label>
+            <div className="w-full p-3 bg-gray-800 rounded-lg text-gray-300">
+              📋 Les covers sont maintenant gérées dans /public/assets/
+              <br />
+              Après ajout du film, placez votre image cover dans le dossier assets
+              avec le nom indiqué dans la confirmation.
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={submitting}
@@ -290,7 +259,7 @@ export default function AdminAjout() {
           </button>
 
           {message && (
-            <div className={`p-4 rounded-lg text-center whitespace-pre-line ${message.includes('succès') ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
+            <div className={`p-4 rounded-lg text-center whitespace-pre-line ${message.includes('✅') ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
               {message}
             </div>
           )}

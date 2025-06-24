@@ -1,115 +1,109 @@
-import type { Route } from "./+types/_index";
 import { Link } from "react-router";
 import { useFilms } from "../contexts/FilmContext";
 import { trackFilmClick } from "../utils/analytics";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
-    { title: "MovieStream - Votre collection de films personnelle" },
-    { name: "description", content: "Découvrez votre collection de films en streaming" },
+    { title: "MovieStream - Films en streaming" },
+    { 
+      name: "description", 
+      content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
+    },
   ];
 }
 
 export default function Index() {
   const { films, loading, error } = useFilms();
 
-  const handleFilmClick = (filmId: string, filmTitle: string) => {
-    trackFilmClick(filmId, filmTitle);
-  };
-
-  // Logging pour debug
-  console.log('🎬 [Index] Render - Films:', films.length, 'Loading:', loading, 'Error:', error);
-
   if (loading) {
-    console.log('⏳ [Index] Affichage du loader...');
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-3 border-teal-400 border-t-transparent border-solid rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl">Chargement du site</p>
-          <p className="text-sm text-gray-400 mt-2">Mise en place de votre home cinéma...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
+          <p>Chargement des films...</p>
         </div>
       </div>
     );
   }
-
-  if (error) {
-    console.log('❌ [Index] Affichage erreur:', error);
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Erreur</h2>
-          <p className="mb-6">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  console.log('✅ [Index] Affichage des films:', films.map(f => f.title));
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-5">
-      <header className="text-center mb-8 md:mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold mb-3 bg-gradient-to-r from-red-400 to-teal-400 bg-clip-text text-transparent">
+    <div className="min-h-screen bg-[#0D0D0D] text-white p-4 md:p-8">
+      {/* Header */}
+      <div className="text-center mb-12">
+        <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-red-500 to-teal-400 bg-clip-text text-transparent mb-4">
           MovieStream
         </h1>
-        <p className="text-gray-300 text-lg md:text-xl">Votre collection de films personnelle</p>
-      </header>
-      
-      <main className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-          {films.map(film => (
-            <Link
-              key={film.id}
-              to={`/watch/${film.id}`}
-              className="bg-gray-900 rounded-xl overflow-hidden transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl block"
-              onClick={() => handleFilmClick(film.id, film.title)}
-            >
-              <div className="relative group">
+        <p className="text-lg text-gray-300">
+          Découvrez une sélection de films classiques et modernes
+        </p>
+      </div>
+
+      {/* Films Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+        {films.map((film, index) => (
+          <Link
+            key={film.id}
+            to={`/watch/${film.id}`}
+            className="group block transform transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+            onClick={() => trackFilmClick(film.title, index)}
+          >
+            <div className="bg-gray-900 rounded-lg overflow-hidden shadow-lg">
+              {/* Image Section */}
+              <div className="relative">
                 <img 
                   src={film.cover} 
-                  alt={film.title}
+                  alt={`${film.title} movie poster`}
                   loading="lazy"
-                  className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-100"
+                  className="w-full h-auto object-contain"
                   onError={(e) => {
-                    const img = e.currentTarget;
-                    
-                    // Fallback pour tous les films - placeholder standard
-                    if (!img.src.includes('placeholder.png')) {
-                      img.src = '/assets/placeholder.png';
-                    }
-                  }}
-                  style={{
-                    minHeight: '300px',
-                    backgroundColor: '#1f2937'
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/assets/placeholder.png";
                   }}
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 md:hidden">
-                  <div className="bg-red-500 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2 text-sm">
-                    ▶ Regarder
-                  </div>
+                
+                {/* Mobile Overlay */}
+                <div className="md:hidden absolute inset-0 bg-black bg-opacity-60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <button className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-bold">
+                    Regarder
+                  </button>
                 </div>
-                <div className="absolute inset-0 bg-black bg-opacity-70 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:flex">
-                  <div className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full font-bold transition-colors flex items-center gap-2">
-                    ▶ Regarder
+
+                {/* Desktop Overlay */}
+                <div className="hidden md:block absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <button className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded font-bold transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                      ▶ Regarder maintenant
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className="p-4 md:p-5">
-                <h3 className="text-lg md:text-xl font-bold mb-2 text-ellipsis overflow-hidden whitespace-nowrap">{film.title}</h3>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-teal-400 font-bold text-sm md:text-base">{film.duration}</p>
-                  {film.year && (
-                    <p className="text-gray-400 font-medium text-sm md:text-base">{film.year}</p>
-                  )}
-                </div>
-                <p className="text-gray-400 leading-relaxed text-sm md:text-base line-clamp-3">{film.description}</p>
+
+              {/* Info Section */}
+              <div className="p-4">
+                <h3 className="font-bold text-lg mb-2 text-white leading-tight"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}>
+                  {film.title}
+                </h3>
+                <p className="text-teal-400 text-sm mb-2">{film.duration}</p>
+                <p className="text-gray-400 text-sm leading-relaxed"
+                   style={{
+                     display: '-webkit-box',
+                     WebkitLineClamp: 3,
+                     WebkitBoxOrient: 'vertical',
+                     overflow: 'hidden'
+                   }}>
+                  {film.description}
+                </p>
               </div>
-            </Link>
-          ))}
-        </div>
-      </main>
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
-

@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const MONGODB_URI = process.env.MONGODB_URI_APP;
 
 if (!MONGODB_URI) {
-  console.error("❌ MONGODB_URI_APP is not defined");
+  console.error("❌ MONGODB_URI_APP not found in environment variables");
 }
 
 // Film Schema
@@ -13,7 +13,6 @@ const filmSchema = new mongoose.Schema({
   duration: { type: String, required: true },
   year: { type: Number, required: true },
   genre: { type: String, required: true },
-  coverUrl: { type: String, required: true },
   description: { type: String, required: true },
   videoUrl: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
@@ -21,28 +20,23 @@ const filmSchema = new mongoose.Schema({
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);
 
+// Connect to MongoDB
 const connectDB = async () => {
   try {
     if (mongoose.connections[0].readyState === 1) {
-      console.log("✅ Already connected to MongoDB (READ-ONLY)");
       return;
     }
 
-    console.log("🔄 Connecting to MongoDB with READ-ONLY user...");
-
     await mongoose.connect(MONGODB_URI, {
-      maxPoolSize: 1,
-      serverSelectionTimeoutMS: 4000,
-      socketTimeoutMS: 30000,
-      connectTimeoutMS: 4000,
+      maxPoolSize: 3,
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 3000,
       bufferCommands: false,
-      retryWrites: true,
-      w: "majority",
     });
 
     console.log("✅ MongoDB connected (READ-ONLY access)");
   } catch (error) {
-    console.error("❌ MongoDB READ-ONLY connection failed:", error.message);
+    console.error("❌ MongoDB connection failed:", error.message);
     throw error;
   }
 };
@@ -50,146 +44,47 @@ const connectDB = async () => {
 exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
-  const functionStartTime = Date.now();
-  console.log("🚀 [get-films] Function started at", new Date().toISOString());
-
   const headers = {
-    "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Content-Type": "application/json",
   };
 
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers };
   }
 
-  if (event.httpMethod !== "GET") {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: "Method not allowed" }),
-    };
-  }
-
   try {
-    console.log("📡 [get-films] Tentative de connexion MongoDB...");
-    const connectStartTime = Date.now();
+    await connectDB();
 
-    await Promise.race([
-      connectDB(),
-      new Promise((_, reject) =>
-        setTimeout(() => {
-          console.log("❌ [get-films] MongoDB connection timeout après 4s");
-          reject(new Error("MongoDB connection timeout 4s"));
-        }, 4000)
-      ),
-    ]);
+    // Requête optimisée - SANS coverUrl, avec tri chronologique
+    const films = await Film.find({})
+      .select("-__v -coverUrl") // Exclure __v et coverUrl
+      .sort({ createdAt: 1 }) // Du plus ancien au plus récent
+      .limit(20)
+      .lean()
+      .exec();
 
-    const connectTime = Date.now() - connectStartTime;
-    console.log(`✅ [get-films] MongoDB connecté en ${connectTime}ms`);
+    console.log(`✅ Found ${films.length} films in MongoDB`);
 
-    console.log("🔍 [get-films] Exécution de la requête Film.find()...");
-    const queryStartTime = Date.now();
-
-    const films = await Promise.race([
-      Film.find().sort({ createdAt: 1 }).lean(),
-      new Promise((_, reject) =>
-        setTimeout(() => {
-          console.log("❌ [get-films] Query timeout après 3s");
-          reject(new Error("Query timeout 3s"));
-        }, 3000)
-      ),
-    ]);
-
-    const queryTime = Date.now() - queryStartTime;
-    console.log(
-      `📋 [get-films] Query terminée en ${queryTime}ms - ${films.length} films trouvés`
-    );
-
-    // LOG DÉTAILLÉ des films récupérés
-    console.log("📊 [get-films] Films bruts de MongoDB:", films);
-    films.forEach((film, index) => {
-      console.log(
-        `📄 [get-films] Film ${index + 1}: ${film.title} (${film._id})`
-      );
-    });
-
-    if (films.length === 0) {
-      console.log(
-        "⚠️ [get-films] AUCUN FILM TROUVÉ - Vérification de la collection..."
-      );
-
-      try {
-        const count = await Film.countDocuments();
-        console.log(`📊 [get-films] countDocuments(): ${count} films en base`);
-
-        if (count > 0) {
-          console.log(
-            "🔍 [get-films] Les films existent mais ne sont pas récupérés par find()"
-          );
-          // Essayer sans le sort pour voir
-          const filmsWithoutSort = await Film.find().lean();
-          console.log(
-            `📋 [get-films] Films sans sort: ${filmsWithoutSort.length}`
-          );
-        }
-      } catch (countError) {
-        console.log(
-          "❌ [get-films] Erreur countDocuments:",
-          countError.message
-        );
-      }
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify([]),
-      };
-    }
-
-    // Transform avec les covers existantes en /assets
-    const transformedFilms = films.map((film, index) => {
-      // Utiliser les covers existantes : film1.png à film12.png
-      const coverNumber = index + 1;
-
-      console.log(
-        `🔄 [get-films] Transform ${index + 1}: ${
-          film.title
-        } → film${coverNumber}.png`
-      );
-
-      return {
-        id: film._id.toString(),
-        title: film.title,
-        cover: `/assets/film${coverNumber}.png`, // Utiliser les covers existantes
-        duration: film.duration,
-        description: film.description,
-        year: film.year,
-        genre: film.genre.split(",").map((g) => g.trim()),
-        videoUrl: film.videoUrl,
-      };
-    });
-
-    const totalTime = Date.now() - functionStartTime;
-    console.log(
-      `🎉 [get-films] SUCCÈS TOTAL en ${totalTime}ms - Retour de ${transformedFilms.length} films`
-    );
-    console.log(
-      `📋 [get-films] Films transformés:`,
-      transformedFilms.map((f) => `${f.title} (${f.cover})`)
-    );
+    // Transformer les films pour ajouter les covers depuis /assets
+    const filmsWithCovers = films.map((film, index) => ({
+      ...film,
+      id: film._id.toString(),
+      cover: `/assets/film${13 + index}.png`, // film13.png, film14.png, etc.
+      genre: Array.isArray(film.genre) ? film.genre : [film.genre],
+    }));
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(transformedFilms),
+      body: JSON.stringify(filmsWithCovers),
     };
   } catch (error) {
-    const totalTime = Date.now() - functionStartTime;
-    console.log(`❌ [get-films] ÉCHEC après ${totalTime}ms:`, error.message);
-    console.log(`💾 [get-films] Retour tableau vide pour fallback côté client`);
+    console.error("❌ MongoDB error:", error.message);
 
+    // Retourner un tableau vide pour que le fallback fonctionne
     return {
       statusCode: 200,
       headers,

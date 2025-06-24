@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom utilities */
+/* Custom styles matching tst.html */
 @layer utilities {
   .line-clamp-3 {
     overflow: hidden;
@@ -12,9 +12,42 @@
   }
 }
 
-/* Fallback styles pour le dev */
+/* Movie card styles from tst.html */
+.movie-card {
+  background-color: #1A202C;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.movie-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Swiss input styles from tst.html */
+.swiss-input::placeholder {
+  color: #A0AEC0;
+}
+
+.swiss-input {
+  background-color: #1A202C;
+  border: 1px solid #2D3748;
+  color: #FFFFFF;
+}
+
+.swiss-button {
+  background-color: #1DA1F2;
+  color: #FFFFFF;
+}
+
+.swiss-button:hover {
+  background-color: #0c85d0;
+}
+
+/* Base styles */
 body {
-  margin: 0;
-  padding: 0;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: 'Inter', sans-serif;
+  background-color: #0D0D0D;
+  color: #FFFFFF;
 }

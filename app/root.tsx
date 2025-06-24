@@ -13,17 +13,21 @@ import "./tailwind.css";
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-  { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" },
-  
-  // Précharger les images critiques (première rangée)
-  { rel: "preload", href: "/assets/film1.png", as: "image" },
-  { rel: "preload", href: "/assets/film2.png", as: "image" },
-  { rel: "preload", href: "/assets/film3.png", as: "image" },
-  { rel: "preload", href: "/assets/film4.png", as: "image" },
-  
-  // DNS prefetch pour les domaines externes
-  { rel: "dns-prefetch", href: "https://0x0.st" },
+  { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" },
+  { rel: "stylesheet", href: "https://fonts.googleapis.com/icon?family=Material+Icons" },
 ];
+
+export function HydrateFallback() {
+  return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <h1 className="text-2xl font-bold mb-2">MovieStream</h1>
+        <p className="text-gray-300">Chargement de l'application...</p>
+      </div>
+    </div>
+  );
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -33,48 +37,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
-        
-        {/* Fix pour les modules ES6 */}
-        <script type="module" dangerouslySetInnerHTML={{
-          __html: `
-            // Fix pour les modules ES6
-            if (!window.process) {
-              window.process = { env: {} };
-            }
-          `
-        }} />
 
-        {/* Service Worker avec cache clearing */}
+        {/* Service Worker registration */}
         <script dangerouslySetInnerHTML={{
           __html: `
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', async () => {
                 try {
-                  // Nettoyer les anciens caches d'abord
-                  const cacheNames = await caches.keys();
-                  for (const cacheName of cacheNames) {
-                    if (cacheName.includes('moviestream-v1')) {
-                      console.log('[Cache] Deleting old cache:', cacheName);
-                      await caches.delete(cacheName);
-                    }
-                  }
-                  
-                  // Enregistrer le nouveau service worker
-                  const registration = await navigator.serviceWorker.register('/sw.js');
-                  console.log('[SW] Registration successful:', registration);
-                  
-                  // Forcer l'update si nouveau SW disponible
-                  registration.addEventListener('updatefound', () => {
-                    const newWorker = registration.installing;
-                    newWorker.addEventListener('statechange', () => {
-                      if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        console.log('[SW] New version available - reloading...');
-                        window.location.reload();
-                      }
-                    });
-                  });
+                  await navigator.serviceWorker.register('/sw.js');
                 } catch (err) {
-                  console.log('[SW] Registration failed:', err);
+                  // Service Worker silencieusement ignoré si échec
                 }
               });
             }

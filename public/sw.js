@@ -1,4 +1,4 @@
-const CACHE_NAME = "moviestream-v2"; // Changé de v1 à v2 pour forcer refresh
+const CACHE_NAME = "moviestream-v2";
 const urlsToCache = [
   "/",
   "/assets/film1.png",
@@ -11,14 +11,28 @@ const urlsToCache = [
   "/assets/film8.png",
   "/assets/film9.png",
   "/assets/film10.png",
-  "/assets/film11.png",
-  "/assets/film12.png",
-  "/assets/placeholder.png",
 ];
 
-// Installation - nettoyer les anciens caches
+// Helper function to check if request can be cached
+const canCacheRequest = (request) => {
+  const url = new URL(request.url);
+
+  // Don't cache chrome-extension, POST, or data URLs
+  if (
+    url.protocol === "chrome-extension:" ||
+    url.protocol === "moz-extension:" ||
+    url.protocol === "data:" ||
+    request.method !== "GET"
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
 self.addEventListener("install", (event) => {
   console.log("[SW] Installing new version...");
+
   event.waitUntil(
     caches
       .open(CACHE_NAME)
@@ -28,14 +42,17 @@ self.addEventListener("install", (event) => {
       })
       .then(() => {
         console.log("[SW] Skip waiting...");
-        return self.skipWaiting(); // Force activation immédiate
+        return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error("[SW] Install failed:", error);
       })
   );
 });
 
-// Activation - supprimer les anciens caches
 self.addEventListener("activate", (event) => {
   console.log("[SW] Activating new version...");
+
   event.waitUntil(
     caches
       .keys()
@@ -51,50 +68,57 @@ self.addEventListener("activate", (event) => {
       })
       .then(() => {
         console.log("[SW] Claiming clients...");
-        return self.clients.claim(); // Prendre contrôle immédiatement
+        return self.clients.claim();
       })
   );
 });
 
-// Fetch - stratégie cache-first pour les assets, network-first pour l'API
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // API calls - toujours aller sur le réseau
-  if (url.pathname.includes("/.netlify/functions/")) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response("[]", {
-          headers: { "Content-Type": "application/json" },
-        });
-      })
-    );
-    return;
+  // Only handle cacheable requests
+  if (!canCacheRequest(event.request)) {
+    return; // Let the browser handle it normally
   }
 
-  // Assets - cache first
-  if (url.pathname.includes("/assets/")) {
-    event.respondWith(
-      caches.match(event.request).then((response) => {
-        return response || fetch(event.request);
-      })
-    );
-    return;
-  }
-
-  // HTML - network first avec fallback cache
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cloner pour cache
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
+    caches.match(event.request).then((response) => {
+      // Return cached version or fetch from network
+      if (response) {
         return response;
-      })
-      .catch(() => {
-        return caches.match(event.request);
-      })
+      }
+
+      return fetch(event.request)
+        .then((response) => {
+          // Check if we received a valid response
+          if (
+            !response ||
+            response.status !== 200 ||
+            response.type !== "basic"
+          ) {
+            return response;
+          }
+
+          // Clone the response
+          const responseToCache = response.clone();
+
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => {
+              // Only cache GET requests to same origin
+              if (canCacheRequest(event.request)) {
+                cache.put(event.request, responseToCache);
+              }
+            })
+            .catch((error) => {
+              console.log("[SW] Cache put error:", error);
+            });
+
+          return response;
+        })
+        .catch((error) => {
+          console.log("[SW] Fetch error:", error);
+          // Return cached version if available
+          return caches.match(event.request);
+        });
+    })
   );
 });
