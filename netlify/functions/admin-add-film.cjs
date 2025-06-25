@@ -22,6 +22,7 @@ const filmSchema = new mongoose.Schema({
   genre: { type: String, required: true },
   description: { type: String, required: true },
   videoUrl: { type: String, required: true },
+  director: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -85,18 +86,34 @@ exports.handler = async (event, context) => {
     // Parse JSON data (no more multipart since no file upload)
     const formData = JSON.parse(event.body);
 
+    // Validation des données
+    const { title, duration, year, genre, description, videoUrl, director } =
+      formData;
+
+    if (!title || !duration || !year || !genre || !description || !videoUrl) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: "Tous les champs obligatoires doivent être remplis",
+        }),
+      };
+    }
+
     // Get current film count to determine cover filename
     const filmCount = await Film.countDocuments();
     const nextFilmNumber = filmCount + 1; // Start at film13.png
 
     // Create film without coverUrl - cover will be film[x].png
     const newFilm = new Film({
-      title: decryptData(formData.title),
-      duration: decryptData(formData.duration),
-      year: parseInt(decryptData(formData.year)),
-      genre: decryptData(formData.genre),
-      description: decryptData(formData.description),
-      videoUrl: decryptData(formData.videoUrl),
+      title: decryptData(title),
+      duration,
+      year: parseInt(year),
+      genre,
+      description: decryptData(description),
+      videoUrl: decryptData(videoUrl),
+      director: director || "",
     });
 
     const savedFilm = await newFilm.save();

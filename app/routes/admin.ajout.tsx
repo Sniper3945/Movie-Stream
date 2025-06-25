@@ -8,6 +8,7 @@ interface FilmForm {
   genre: string;
   description: string;
   videoUrl: string;
+  director: string;
 }
 
 // Simple encryption function - FIX pour les caractères spéciaux
@@ -21,6 +22,33 @@ const encryptData = (data: string): string => {
   }
 };
 
+// Liste des genres disponibles avec couleur grise uniforme
+const AVAILABLE_GENRES = [
+  { name: "Action", color: "bg-gray-600" },
+  { name: "Aventure", color: "bg-gray-600" },
+  { name: "Animation", color: "bg-gray-600" },
+  { name: "Comédie", color: "bg-gray-600" },
+  { name: "Crime", color: "bg-gray-600" },
+  { name: "Documentaire", color: "bg-gray-600" },
+  { name: "Drame", color: "bg-gray-600" },
+  { name: "Familial", color: "bg-gray-600" },
+  { name: "Fantasy", color: "bg-gray-600" },
+  { name: "Histoire", color: "bg-gray-600" },
+  { name: "Horreur", color: "bg-gray-600" },
+  { name: "Musique", color: "bg-gray-600" },
+  { name: "Mystère", color: "bg-gray-600" },
+  { name: "Romance", color: "bg-gray-600" },
+  { name: "Science-Fiction", color: "bg-gray-600" },
+  { name: "Thriller", color: "bg-gray-600" },
+  { name: "Guerre", color: "bg-gray-600" },
+  { name: "Western", color: "bg-gray-600" },
+  { name: "Biopic", color: "bg-gray-600" },
+  { name: "Policier", color: "bg-gray-600" },
+  { name: "Espionnage", color: "bg-gray-600" },
+  { name: "Catastrophe", color: "bg-gray-600" },
+  { name: "Survival", color: "bg-gray-600" }
+];
+
 export default function AdminAjout() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
@@ -31,9 +59,17 @@ export default function AdminAjout() {
     year: new Date().getFullYear(),
     genre: '',
     description: '',
-    videoUrl: ''
+    videoUrl: '',
+    director: ''
   });
   const [message, setMessage] = useState('');
+  const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [genreSuggestions, setGenreSuggestions] = useState<string[]>([]);
+  const [directorQuery, setDirectorQuery] = useState('');
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [genreInput, setGenreInput] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -86,7 +122,8 @@ export default function AdminAjout() {
         year: form.year.toString(),
         genre: form.genre,
         description: encryptData(form.description),
-        videoUrl: encryptData(form.videoUrl)
+        videoUrl: encryptData(form.videoUrl),
+        director: form.director
       };
       
       const response = await fetch('/.netlify/functions/admin-add-film', {
@@ -113,8 +150,10 @@ export default function AdminAjout() {
           year: new Date().getFullYear(),
           genre: '',
           description: '',
-          videoUrl: ''
+          videoUrl: '',
+          director: ''
         });
+        setSelectedGenres([]);
       } else {
         setMessage(`❌ ${result.error}`);
       }
@@ -129,21 +168,126 @@ export default function AdminAjout() {
     }
   };
 
+  // Autocomplétion pour les genres
+  const handleGenreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setForm({...form, genre: value});
+    
+    if (value.length > 0) {
+      const suggestions = AVAILABLE_GENRES.filter(genre => 
+        genre.name.toLowerCase().includes(value.toLowerCase())
+      );
+      setGenreSuggestions(suggestions.map(g => g.name));
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  // Gestion des genres avec badges
+  const handleGenreInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setGenreInput(value);
+    
+    if (value.length > 0) {
+      const suggestions = AVAILABLE_GENRES.filter(genre => 
+        genre.name.toLowerCase().includes(value.toLowerCase()) &&
+        !selectedGenres.includes(genre.name)
+      );
+      setGenreSuggestions(suggestions.map(g => g.name));
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const addGenre = (genreName: string) => {
+    if (!selectedGenres.includes(genreName)) {
+      const newGenres = [...selectedGenres, genreName];
+      setSelectedGenres(newGenres);
+      setForm({...form, genre: newGenres.join(', ')});
+    }
+    setGenreInput('');
+    setShowSuggestions(false);
+  };
+
+  const removeGenre = (genreToRemove: string) => {
+    const newGenres = selectedGenres.filter(genre => genre !== genreToRemove);
+    setSelectedGenres(newGenres);
+    setForm({...form, genre: newGenres.join(', ')});
+  };
+
+  const getGenreColor = (genreName: string) => {
+    return 'bg-gray-600'; // Couleur grise uniforme pour tous les genres
+  };
+
+  // Recherche TMDB
+  const searchMovie = async () => {
+    if (!form.title.trim()) {
+      setMessage('Veuillez entrer un titre de film');
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const params = new URLSearchParams({
+        title: form.title,
+        ...(directorQuery && { director: directorQuery }),
+        ...(form.year && { year: form.year.toString() })
+      });
+
+      const response = await fetch(`/.netlify/functions/search-tmdb?${params}`);
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        setMovieSearchResults(data.results);
+        setMessage(`${data.results.length} film(s) trouvé(s)`);
+      } else {
+        setMessage('Aucun film trouvé');
+        setMovieSearchResults([]);
+      }
+    } catch (error) {
+      setMessage('Erreur lors de la recherche');
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Sélectionner un film depuis les résultats TMDB
+  const selectMovieFromTMDB = (movie: any) => {
+    const movieGenres = movie.genres || [];
+    setSelectedGenres(movieGenres);
+    
+    setForm({
+      ...form,
+      title: movie.title,
+      year: movie.year || new Date().getFullYear(),
+      genre: movieGenres.join(', '),
+      description: movie.overview,
+      duration: movie.runtime ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}min` : form.duration,
+      director: movie.director || ''
+    });
+    setDirectorQuery(movie.director || '');
+    setMovieSearchResults([]);
+    setMessage(`Film sélectionné: ${movie.title} (${movie.year})`);
+  };
+
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <form onSubmit={handleLogin} className="bg-gray-900 p-8 rounded-lg max-w-md w-full">
+      <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
+        <form onSubmit={handleLogin} className="bg-gray-900 p-8 rounded-lg max-w-md w-full border border-gray-700">
           <h1 className="text-2xl font-bold mb-6 text-center">Admin Access</h1>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Mot de passe admin"
-            className="w-full p-3 bg-gray-800 rounded-lg mb-4"
+            className="swiss-input w-full p-3 rounded-lg mb-4"
           />
           <button
             type="submit"
-            className="w-full bg-red-500 hover:bg-red-600 p-3 rounded-lg font-bold"
+            className="w-full swiss-button p-3 rounded-lg font-bold"
           >
             Se connecter
           </button>
@@ -154,115 +298,306 @@ export default function AdminAjout() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Ajouter un Film</h1>
-          <button
-            onClick={() => navigate('/')}
-            className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
-          >
-            ← Retour
-          </button>
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
+      {/* Header */}
+      <header className="bg-[#0D0D0D] py-4 px-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
+        <div className="container mx-auto flex items-center justify-between">
+          <div className="flex items-center">
+            <button
+              onClick={() => navigate('/')}
+              className="mr-4 p-2 rounded-full hover:bg-gray-700 transition-colors"
+            >
+              <span className="material-icons">arrow_back</span>
+            </button>
+            <h1 className="text-2xl md:text-3xl font-bold select-none">
+              Movie<span className="font-normal">Stream</span> Admin
+            </h1>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/admin/migration')}
+              className="hidden sm:flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-colors"
+            >
+              <span className="material-icons text-sm mr-2">sync</span>
+              Migration
+            </button>
+            <button className="p-2 rounded-full hover:bg-gray-700 transition-colors">
+              <span className="material-icons">settings</span>
+            </button>
+          </div>
         </div>
+      </header>
 
-        <form onSubmit={handleSubmit} className="bg-gray-900 p-6 rounded-lg space-y-4">
-          <div>
-            <label className="block mb-2 font-bold">Titre du film</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm({...form, title: e.target.value})}
-              className="w-full p-3 bg-gray-800 rounded-lg"
-              required
-            />
+      <div className="container mx-auto px-4 md:px-8 py-8">
+        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-8">
+          
+          {/* Section recherche TMDB */}
+          <div className="bg-gray-900 p-6 rounded-lg border border-gray-700">
+            <h3 className="text-xl font-bold mb-6 flex items-center">
+              <span className="material-icons mr-3 text-blue-400">search</span>
+              Recherche automatique (TMDB)
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block mb-2 font-bold text-gray-300">Titre du film</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm({...form, title: e.target.value})}
+                  className="swiss-input w-full p-3 rounded-lg"
+                  placeholder="Ex: Le Samouraï"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-2 font-bold text-gray-300">Réalisateur (optionnel)</label>
+                <input
+                  type="text"
+                  value={directorQuery}
+                  onChange={(e) => setDirectorQuery(e.target.value)}
+                  className="swiss-input w-full p-3 rounded-lg"
+                  placeholder="Ex: Jean-Pierre Melville"
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={searchMovie}
+              disabled={isSearching}
+              className="w-full swiss-button p-4 rounded-lg font-bold disabled:opacity-50 flex items-center justify-center"
+            >
+              {isSearching ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  Recherche en cours...
+                </>
+              ) : (
+                <>
+                  <span className="material-icons mr-2">search</span>
+                  Rechercher sur TMDB
+                </>
+              )}
+            </button>
+
+            {/* Résultats de recherche */}
+            {movieSearchResults.length > 0 && (
+              <div className="mt-6 space-y-3">
+                <h4 className="font-bold text-lg">Résultats trouvés :</h4>
+                {movieSearchResults.map((movie: any, index) => (
+                  <div key={index} className="bg-gray-800 p-4 rounded-lg border border-gray-600">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h5 className="font-bold text-lg mb-2">{movie.title}</h5>
+                        <p className="text-sm text-gray-400 mb-3">
+                          {movie.year} • {movie.director} • {movie.genres.join(', ')}
+                        </p>
+                        <p className="text-sm text-gray-300">{movie.overview?.substring(0, 150)}...</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => selectMovieFromTMDB(movie)}
+                        className="ml-4 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        Sélectionner
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-2 font-bold">Durée</label>
+          {/* Formulaire manuel */}
+          <div className="bg-gray-900 p-6 rounded-lg border border-gray-700">
+            <h3 className="text-xl font-bold mb-6 flex items-center">
+              <span className="material-icons mr-3 text-green-400">edit</span>
+              Informations du film
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block mb-2 font-bold text-gray-300">Durée</label>
+                <input
+                  type="text"
+                  value={form.duration}
+                  onChange={(e) => setForm({...form, duration: e.target.value})}
+                  placeholder="1h 30min"
+                  className="swiss-input w-full p-3 rounded-lg"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block mb-2 font-bold text-gray-300">Année</label>
+                <input
+                  type="number"
+                  value={form.year}
+                  onChange={(e) => setForm({...form, year: parseInt(e.target.value)})}
+                  className="swiss-input w-full p-3 rounded-lg"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block mb-2 font-bold text-gray-300">Réalisateur</label>
               <input
                 type="text"
-                value={form.duration}
-                onChange={(e) => setForm({...form, duration: e.target.value})}
-                placeholder="1h 30min"
-                className="w-full p-3 bg-gray-800 rounded-lg"
-                required
+                value={form.director}
+                onChange={(e) => setForm({...form, director: e.target.value})}
+                placeholder="Ex: Jean-Pierre Melville"
+                className="swiss-input w-full p-3 rounded-lg"
               />
+              <p className="text-gray-400 text-sm mt-2">
+                Nom du réalisateur (optionnel)
+              </p>
             </div>
-            <div>
-              <label className="block mb-2 font-bold">Année</label>
+
+            <div className="mb-6">
+              <label className="block mb-2 font-bold text-gray-300">Genres</label>
+              
+              {/* Badges des genres sélectionnés */}
+              {selectedGenres.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4 p-4 bg-gray-800 rounded-lg border border-gray-600">
+                  {selectedGenres.map((genre, index) => (
+                    <span
+                      key={index}
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium text-white ${getGenreColor(genre)}`}
+                    >
+                      {genre}
+                      <button
+                        type="button"
+                        onClick={() => removeGenre(genre)}
+                        className="ml-2 hover:bg-black hover:bg-opacity-20 rounded-full p-1 transition-colors"
+                      >
+                        <span className="material-icons text-sm">close</span>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Input pour ajouter des genres */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={genreInput}
+                  onChange={handleGenreInputChange}
+                  placeholder="Tapez pour ajouter un genre..."
+                  className="swiss-input w-full p-3 rounded-lg"
+                />
+                
+                {/* Suggestions dropdown */}
+                {showSuggestions && genreSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {genreSuggestions.map((genreName, index) => {
+                      const genreData = AVAILABLE_GENRES.find(g => g.name === genreName);
+                      return (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => addGenre(genreName)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-700 first:rounded-t-lg last:rounded-b-lg flex items-center transition-colors"
+                        >
+                          <span className={`w-3 h-3 rounded-full mr-3 ${genreData?.color || 'bg-gray-500'}`}></span>
+                          {genreName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Genres populaires en accès rapide */}
+              <div className="mt-4">
+                <p className="text-sm text-gray-400 mb-3">Genres populaires :</p>
+                <div className="flex flex-wrap gap-2">
+                  {AVAILABLE_GENRES.slice(0, 8).map((genre) => (
+                    !selectedGenres.includes(genre.name) && (
+                      <button
+                        key={genre.name}
+                        type="button"
+                        onClick={() => addGenre(genre.name)}
+                        className={`px-3 py-1 rounded-full text-sm font-medium text-white hover:opacity-80 transition-opacity ${genre.color}`}
+                      >
+                        + {genre.name}
+                      </button>
+                    )
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block mb-2 font-bold text-gray-300">URL de la vidéo</label>
               <input
-                type="number"
-                value={form.year}
-                onChange={(e) => setForm({...form, year: parseInt(e.target.value)})}
-                className="w-full p-3 bg-gray-800 rounded-lg"
+                type="url"
+                value={form.videoUrl}
+                onChange={(e) => setForm({...form, videoUrl: e.target.value})}
+                placeholder="https://0x0.st/example.mp4"
+                className="swiss-input w-full p-3 rounded-lg"
+                required
+              />
+              <p className="text-gray-400 text-sm mt-2">
+                URL directe vers le fichier vidéo (0x0.st, etc.)
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block mb-2 font-bold text-gray-300">Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({...form, description: e.target.value})}
+                rows={4}
+                className="swiss-input w-full p-3 rounded-lg"
                 required
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block mb-2 font-bold">Genre</label>
-            <input
-              type="text"
-              value={form.genre}
-              onChange={(e) => setForm({...form, genre: e.target.value})}
-              placeholder="Action, Drame, etc."
-              className="w-full p-3 bg-gray-800 rounded-lg"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-bold">URL de la vidéo</label>
-            <input
-              type="url"
-              value={form.videoUrl}
-              onChange={(e) => setForm({...form, videoUrl: e.target.value})}
-              placeholder="https://0x0.st/example.mp4"
-              className="w-full p-3 bg-gray-800 rounded-lg"
-              required
-            />
-            <p className="text-gray-400 text-sm mt-1">
-              URL directe vers le fichier vidéo (0x0.st, etc.)
-            </p>
-          </div>
-
-          <div>
-            <label className="block mb-2 font-bold">Description</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({...form, description: e.target.value})}
-              rows={4}
-              className="w-full p-3 bg-gray-800 rounded-lg"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block mb-2 font-bold">Cover (Information)</label>
-            <div className="w-full p-3 bg-gray-800 rounded-lg text-gray-300">
-              📋 Les covers sont maintenant gérées dans /public/assets/
-              <br />
-              Après ajout du film, placez votre image cover dans le dossier assets
-              avec le nom indiqué dans la confirmation.
+            <div className="mb-6">
+              <label className="block mb-2 font-bold text-gray-300">Cover (Information)</label>
+              <div className="w-full p-4 bg-gray-800 rounded-lg text-gray-300 border border-gray-600">
+                <div className="flex items-center">
+                  <span className="material-icons mr-3 text-blue-400">info</span>
+                  <div>
+                    <p className="font-medium">Gestion des covers</p>
+                    <p className="text-sm text-gray-400">
+                      Les covers sont gérées dans /public/assets/. Après ajout du film, 
+                      placez votre image cover dans le dossier assets avec le nom indiqué dans la confirmation.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full swiss-button p-4 rounded-lg font-bold disabled:opacity-50 flex items-center justify-center"
+            >
+              {submitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  Ajout en cours...
+                </>
+              ) : (
+                <>
+                  <span className="material-icons mr-2">add</span>
+                  Ajouter le Film
+                </>
+              )}
+            </button>
+
+            {message && (
+              <div className={`mt-6 p-4 rounded-lg text-center whitespace-pre-line ${
+                message.includes('✅') ? 'bg-green-900 text-green-400 border border-green-700' : 'bg-red-900 text-red-400 border border-red-700'
+              }`}>
+                {message}
+              </div>
+            )}
           </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-red-500 hover:bg-red-600 p-3 rounded-lg font-bold disabled:opacity-50"
-          >
-            {submitting ? 'Ajout en cours...' : 'Ajouter le Film'}
-          </button>
-
-          {message && (
-            <div className={`p-4 rounded-lg text-center whitespace-pre-line ${message.includes('✅') ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
-              {message}
-            </div>
-          )}
         </form>
       </div>
     </div>

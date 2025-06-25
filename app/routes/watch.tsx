@@ -1,157 +1,207 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useParams } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router';
 import { useFilms } from '../contexts/FilmContext';
-import { trackFilmView, trackVideoPlay, trackVideoComplete } from '../utils/analytics';
+
+// Fonction pour obtenir la couleur d'un genre - couleur grise uniforme
+const getGenreColor = (genreName: string) => {
+  return 'bg-gray-600'; // Couleur grise pour s'harmoniser avec le thème
+};
 
 export function meta({ params }: { params: { id: string } }) {
   return [
-    { title: `Regarder ${params.id} - MovieStream` },
-    { name: "description", content: "Regardez vos films préférés en streaming HD" },
+    { title: `Film ${params.id} - MovieStream` },
+    { name: "description", content: "Regarder ce film en streaming sur MovieStream" },
   ];
 }
 
 export default function Watch() {
-  const params = useParams();
-  const { getFilmById } = useFilms();
-  const [film, setFilm] = useState<any>(null); // Use any to avoid type conflicts
-  const [videoUrl, setVideoUrl] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [videoLoading, setVideoLoading] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { films, loading } = useFilms();
+  const [currentFilm, setCurrentFilm] = useState<any>(null);
+  const [isVideoLoading, setIsVideoLoading] = useState(true);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
-    const fetchFilm = async () => {
-      if (!params.id) {
-        setIsLoading(false);
-        return;
-      }
-
-      const filmData = getFilmById(params.id);
-      if (filmData) {
-        setFilm(filmData);
-        setVideoUrl(filmData.videoUrl || ''); // Handle optional videoUrl
-        setIsLoading(false);
-        trackFilmView(filmData.title);
+    if (films.length > 0 && id) {
+      const film = films.find(f => f.id === id);
+      if (film) {
+        setCurrentFilm(film);
       } else {
-        setIsLoading(false);
+        navigate('/');
       }
-    };
-
-    fetchFilm();
-  }, [params.id, getFilmById]);
-
-  const handleVideoPlay = () => {
-    if (film) {
-      trackVideoPlay(film.title);
     }
-  };
+  }, [films, id, navigate]);
 
-  const handleVideoEnded = () => {
-    if (film) {
-      trackVideoComplete(film.title);
-    }
-  };
-
-  const handleVideoLoadStart = () => {
-    setVideoLoading(true);
-  };
-
-  const handleVideoCanPlay = () => {
-    setVideoLoading(false);
-  };
-
-  const handleFullscreen = () => {
-    if (videoRef.current && videoRef.current.requestFullscreen) {
-      videoRef.current.requestFullscreen();
-    }
-  };
-
-  if (isLoading) {
+  if (loading || !currentFilm) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-3 border-teal-400 border-t-transparent border-solid rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-xl">Chargement du film...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!film) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-400 mb-4">Film non trouvé</h2>
-          <Link 
-            to="/" 
-            className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-3 rounded-lg transition-colors"
-          >
-            ← Retour à l'accueil
-          </Link>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
+          <p>Chargement du film...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div 
-      className="min-h-screen bg-black text-white"
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      <header className="flex items-center p-5 bg-black bg-opacity-90 sticky top-0 z-50">
-        <Link 
-          to="/" 
-          className="text-teal-400 hover:bg-teal-400 hover:bg-opacity-10 px-4 py-2 rounded-lg transition-colors font-bold mr-5"
-        >
-          ← Retour
-        </Link>
-        <h1 className="text-xl font-bold">{film.title}</h1>
+    <div className="min-h-screen bg-[#0D0D0D] text-white">
+      {/* Header */}
+      <header className="bg-[#0D0D0D] py-4 px-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
+        <div className="container mx-auto flex items-center justify-between">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center text-white hover:text-gray-300 transition-colors"
+          >
+            <span className="material-icons mr-2">arrow_back</span>
+            <span className="text-sm">Retour</span>
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            ><span className="text-xl md:text-2xl font-bold select-none">
+              Movie<span className="font-normal">Stream</span>
+            </span>
+          </button>
+        </div>
       </header>
-      
-      <div className="max-w-6xl mx-auto p-5">
-        <div className="mb-8 relative">
-          <div className="relative bg-black rounded-lg overflow-hidden">
-            {/* Video Loading Overlay - Hidden on mobile */}
-            {videoLoading && (
-              <div className="hidden md:flex absolute inset-0 bg-black bg-opacity-75 items-center justify-center z-20">
-                <div className="text-center">
-                  <div className="w-16 h-16 border-4 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-white font-semibold">Chargement du lecteur...</p>
-                  <p className="text-gray-300 text-sm mt-2">Préparation de la vidéo</p>
-                </div>
-              </div>
-            )}
 
-            <video 
-              ref={videoRef}
-              controls 
-              className="w-full aspect-video rounded-lg"
-              src={videoUrl}
-              onContextMenu={(e) => e.preventDefault()}
-              onPlay={handleVideoPlay}
-              onEnded={handleVideoEnded}
-              onLoadStart={handleVideoLoadStart}
-              onCanPlay={handleVideoCanPlay}
+      {/* Video Player - Plus petit sur desktop */}
+      <div className="container mx-auto px-4 md:px-8 py-8">
+        <div className="relative w-full max-w-4xl mx-auto aspect-video bg-black rounded-lg overflow-hidden shadow-2xl">
+          {isVideoLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-500 mx-auto mb-4"></div>
+                <p>Chargement de la vidéo...</p>
+              </div>
+            </div>
+          )}
+          
+          {videoError ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+              <div className="text-center">
+                <span className="material-icons text-6xl text-red-500 mb-4 block">error</span>
+                <h3 className="text-xl mb-2">Erreur de lecture</h3>
+                <p className="text-gray-400 mb-4">Impossible de charger la vidéo</p>
+                <button 
+                  onClick={() => {
+                    setVideoError(false);
+                    setIsVideoLoading(true);
+                  }}
+                  className="swiss-button px-6 py-2 rounded-lg"
+                >
+                  Réessayer
+                </button>
+              </div>
+            </div>
+          ) : (
+            <video
+              className="w-full h-full"
+              controls
+              autoPlay
+              onLoadStart={() => setIsVideoLoading(true)}
+              onCanPlay={() => setIsVideoLoading(false)}
+              onError={() => {
+                setVideoError(true);
+                setIsVideoLoading(false);
+              }}
             >
+              <source src={currentFilm.videoUrl} type="video/mp4" />
               Votre navigateur ne supporte pas la lecture vidéo.
             </video>
+          )}
+        </div>
+
+        {/* Film Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+          {/* Main Info */}
+          <div className="lg:col-span-2">
+            <h1 className="text-3xl md:text-4xl font-bold mb-4">{currentFilm.title}</h1>
             
-            {/* Bouton plein écran - Desktop uniquement */}
-            <button
-              onClick={handleFullscreen}
-              className="absolute top-4 right-4 bg-teal-500 hover:bg-teal-600 text-white px-3 py-2 rounded-lg transition-colors z-10 hidden md:block"
-            >
-              📺 Plein écran
-            </button>
+            <div className="flex flex-wrap items-center gap-4 mb-6">
+              <div className="flex items-center text-gray-400">
+                <span className="material-icons text-sm mr-1">schedule</span>
+                {currentFilm.duration}
+              </div>
+              <div className="flex items-center text-gray-400">
+                <span className="material-icons text-sm mr-1">calendar_today</span>
+                {currentFilm.year}
+              </div>
+              {currentFilm.director && (
+                <div className="flex items-center text-gray-400">
+                  <span className="material-icons text-sm mr-1">person</span>
+                  {currentFilm.director}
+                </div>
+              )}
+              <div className="flex items-center text-gray-400">
+                <span className="material-icons text-sm mr-1">star</span>
+                8.5/10
+              </div>
+            </div>
+
+            {/* Genre Tags */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {(Array.isArray(currentFilm.genre) ? currentFilm.genre : currentFilm.genre?.split(', ') || [])
+                .map((genre: string, index: number) => (
+                <span
+                  key={index}
+                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white ${getGenreColor(genre.trim())}`}
+                >
+                  {genre.trim()}
+                </span>
+              ))}
+            </div>
+
+            {/* Description */}
+            <div className="prose prose-invert max-w-none">
+              <h3 className="text-xl font-semibold mb-3">Synopsis</h3>
+              <p className="text-gray-300 leading-relaxed">
+                {currentFilm.description}
+              </p>
+            </div>
           </div>
-          
-          <div className="mt-4">
-            <h2 className="text-3xl font-bold mb-2">{film.title}</h2>
-            <p className="text-teal-400 font-bold mb-4 text-lg">{film.duration}</p>
-            <p className="text-gray-300 leading-relaxed text-lg">{film.description}</p>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            {/* Film Details */}
+            <div className="bg-gray-900 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">Détails du film</h3>
+              <div className="space-y-3">
+                {currentFilm.director && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Réalisateur</span>
+                    <span>{currentFilm.director}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Année</span>
+                  <span>{currentFilm.year}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Durée</span>
+                  <span>{currentFilm.duration}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Audio</span>
+                  <span>Français</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-[#0D0D0D] border-t border-gray-700 mt-auto">
+        <div className="container mx-auto px-4 md:px-8 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
+            <p>© 2025 MovieStream. Tous droits réservés.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
-}
+};
+
+
+

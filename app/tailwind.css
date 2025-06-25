@@ -55,3 +55,215 @@ body {
   background-color: #0D0D0D;
   color: #FFFFFF;
 }
+
+/* Logo button styles */
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Badge styles for genres */
+.genre-badge {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white;
+  transition: all 0.2s ease;
+}
+
+.genre-badge:hover {
+  @apply scale-105 brightness-110;
+}
+
+/* Genre badge colors - couleur grise uniforme */
+.badge-action, .badge-aventure, .badge-animation, .badge-comedie, 
+.badge-crime, .badge-documentaire, .badge-drame, .badge-familial,
+.badge-fantasy, .badge-histoire, .badge-horreur, .badge-musique,
+.badge-mystere, .badge-romance, .badge-science-fiction, .badge-thriller,
+.badge-guerre, .badge-western, .badge-biopic, .badge-policier {
+  @apply bg-gray-600;
+}
+
+/* Dropdown styles */
+.dropdown-enter {
+  @apply opacity-0 scale-95;
+}
+
+.dropdown-enter-active {
+  @apply opacity-100 scale-100 transition-all duration-200 ease-out;
+}
+
+.dropdown-exit {
+  @apply opacity-100 scale-100;
+}
+
+.dropdown-exit-active {
+  @apply opacity-0 scale-95 transition-all duration-150 ease-in;
+}
+
+/* Sort dropdown specific styles */
+.sort-dropdown {
+  @apply min-w-[12rem] max-h-64 overflow-y-auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4B5563 #1A202C;
+}
+
+.sort-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sort-dropdown::-webkit-scrollbar-track {
+  background: #1A202C;
+}
+
+.sort-dropdown::-webkit-scrollbar-thumb {
+  background: #4B5563;
+  border-radius: 3px;
+}
+
+.sort-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
+}
+
+/* Mobile menu animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+.mobile-menu-enter {
+  animation: slideDown 0.2s ease-out;
+}
+
+.mobile-menu-exit {
+  animation: slideUp 0.15s ease-in;
+}
+
+/* Filter button active state */
+.filter-active {
+  @apply bg-blue-600 text-white shadow-lg;
+}
+
+.filter-active:hover {
+  @apply bg-blue-700;
+}
+
+/* Mobile search improvements */
+@media (max-width: 768px) {
+  .search-container {
+    @apply relative w-full;
+  }
+  
+  .mobile-header {
+    @apply space-y-4;
+  }
+  
+  .mobile-nav-item {
+    @apply flex items-center py-2 px-3 rounded-md transition-colors;
+  }
+  
+  .mobile-nav-item:hover {
+    @apply bg-gray-800;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .movie-card {
+    background-color: transparent;
+    border-radius: 0;
+    overflow: visible;
+    transition: transform 0.2s ease;
+  }
+  
+  .movie-card:hover {
+    transform: scale(1.02);
+    box-shadow: none;
+  }
+  
+  .movie-card img {
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .movie-card:hover img {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  }
+  
+  /* Remove card info on mobile */
+  .movie-card .p-4 {
+    display: none;
+  }
+}
+
+/* Improved line clamping */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* Mobile touch improvements */
+@media (max-width: 640px) {
+  .grid {
+    gap: 0.75rem;
+  }
+  
+  .movie-card {
+    padding: 0;
+  }
+  
+  /* Smooth aspect ratio */
+  .aspect-\[2\/3\] {
+    aspect-ratio: 2/3;
+  }
+}
+
+/* Desktop maintains original card design */
+@media (min-width: 640px) {
+  .movie-card {
+    background-color: #1A202C;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .movie-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Mobile grid adjustments */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  main {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+  
+  section {
+    margin-bottom: 2rem;
+  }
+}

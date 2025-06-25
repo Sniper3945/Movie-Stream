@@ -15,6 +15,7 @@ const filmSchema = new mongoose.Schema({
   genre: { type: String, required: true },
   description: { type: String, required: true },
   videoUrl: { type: String, required: true },
+  director: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -58,33 +59,38 @@ exports.handler = async (event, context) => {
   try {
     await connectDB();
 
-    // Requête optimisée - SANS coverUrl, avec tri chronologique
-    const films = await Film.find({})
-      .select("-__v -coverUrl") // Exclure __v et coverUrl
-      .sort({ createdAt: 1 }) // Du plus ancien au plus récent
-      .limit(20)
-      .lean()
-      .exec();
+    let films = [];
 
-    console.log(`✅ Found ${films.length} films in MongoDB`);
+    try {
+      const dbFilms = await Film.find({}).lean().exec();
+      films = dbFilms.map((film, index) => ({
+        id: film._id.toString(),
+        title: film.title,
+        duration: film.duration,
+        year: film.year,
+        genre: film.genre,
+        description: film.description,
+        videoUrl: film.videoUrl,
+        director: film.director || "",
+        cover: `/assets/film${index + 1}.png`,
+      }));
+    } catch (dbError) {
+      console.error("❌ Error fetching films from MongoDB:", dbError.message);
 
-    // Transformer les films pour ajouter les covers depuis /assets
-    const filmsWithCovers = films.map((film, index) => ({
-      ...film,
-      id: film._id.toString(),
-      cover: `/assets/film${index + 1}.png`,
-      genre: Array.isArray(film.genre) ? film.genre : [film.genre],
-    }));
+      // En cas d'erreur DB, retourner un tableau vide
+      // Le fallback sera géré côté client avec films.ts
+      films = [];
+    }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(filmsWithCovers),
+      body: JSON.stringify(films),
     };
   } catch (error) {
     console.error("❌ MongoDB error:", error.message);
 
-    // Retourner un tableau vide pour que le fallback fonctionne
+    // Retourner un tableau vide pour que le fallback côté client fonctionne
     return {
       statusCode: 200,
       headers,

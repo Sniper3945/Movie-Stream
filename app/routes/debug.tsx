@@ -35,6 +35,7 @@ export default function Debug() {
   const [mongoTest, setMongoTest] = useState<MongoTest | null>(null);
   const [ipData, setIpData] = useState<IpData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [genreAnalysis, setGenreAnalysis] = useState<any>(null);
 
   useEffect(() => {
     const fetchDebugData = async () => {
@@ -54,6 +55,32 @@ export default function Debug() {
         const ipResult = await ipResponse.json();
         setIpData(ipResult);
 
+        // Analyser les genres des films
+        const filmsResponse = await fetch('/.netlify/functions/get-films');
+        const filmsData = await filmsResponse.json();
+        
+        if (filmsData && filmsData.length > 0) {
+          const genreSet = new Set<string>();
+          const genreCount: { [key: string]: number } = {};
+          
+          filmsData.forEach((film: any) => {
+            if (film.genre) {
+              const genres = Array.isArray(film.genre) ? film.genre : film.genre.split(', ');
+              genres.forEach((genre: string) => {
+                const cleanGenre = genre.trim();
+                genreSet.add(cleanGenre);
+                genreCount[cleanGenre] = (genreCount[cleanGenre] || 0) + 1;
+              });
+            }
+          });
+
+          setGenreAnalysis({
+            uniqueGenres: Array.from(genreSet),
+            genreCount,
+            totalFilms: filmsData.length
+          });
+        }
+        
       } catch (error) {
         console.error('Debug error:', error);
       } finally {
@@ -112,6 +139,48 @@ export default function Debug() {
           </div>
         )}
       </div>
+
+      {/* Genre Analysis */}
+      {genreAnalysis && (
+        <div className="bg-gray-900 rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-bold mb-4">Analyse des Genres Actuels</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-bold mb-3">Genres Uniques ({genreAnalysis.uniqueGenres.length})</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {genreAnalysis.uniqueGenres.map((genre: string, index: number) => (
+                  <div key={index} className="flex justify-between items-center bg-gray-800 p-2 rounded">
+                    <span>{genre}</span>
+                    <span className="text-gray-400">({genreAnalysis.genreCount[genre]})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="font-bold mb-3">Mapping Suggéré</h3>
+              <div className="space-y-2 text-sm">
+                <div className="p-3 bg-blue-900 rounded">
+                  <p className="font-bold mb-2">Genres à conserver :</p>
+                  <p className="text-gray-300">Action, Drame, Thriller, Romance, Comédie</p>
+                </div>
+                <div className="p-3 bg-yellow-900 rounded">
+                  <p className="font-bold mb-2">Genres à renommer :</p>
+                  <p className="text-gray-300">
+                    "Policier" → "Crime"<br/>
+                    "Sci-Fi" → "Science-Fiction"<br/>
+                    "Espionnage" → "Thriller"
+                  </p>
+                </div>
+                <div className="p-3 bg-green-900 rounded">
+                  <p className="font-bold mb-2">Nouveaux genres disponibles :</p>
+                  <p className="text-gray-300">Animation, Fantasy, Horreur, Western, Biopic</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <a 
         href="/" 
