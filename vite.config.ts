@@ -13,10 +13,13 @@ export default defineConfig({
       host: 'localhost'
     }
   },
+  preview: {
+    port: 8888,
+    host: true
+  },
   build: {
     rollupOptions: {
       onwarn(warning: any, warn: any) {
-        // Supprimer les warnings inutiles
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') {
           return;
         }

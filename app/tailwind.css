@@ -2,7 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles matching tst.html */
+/* Custom styles from tst.html */
+:root {
+  --swiss-red: #FF0000;
+}
+
 @layer utilities {
   .line-clamp-3 {
     overflow: hidden;
@@ -10,19 +14,6 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
   }
-}
-
-/* Movie card styles from tst.html */
-.movie-card {
-  background-color: #1A202C;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.movie-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 /* Swiss input styles from tst.html */
@@ -43,6 +34,19 @@
 
 .swiss-button:hover {
   background-color: #0c85d0;
+}
+
+/* Movie card styles from tst.html */
+.movie-card {
+  background-color: #1A202C;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.movie-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
 /* Base styles */

@@ -14,7 +14,3 @@
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
-
-/.netlify/functions/*
-  Access-Control-Allow-Origin: *
-  Cache-Control: no-cache

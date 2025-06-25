@@ -87,7 +87,7 @@ exports.handler = async (event, context) => {
 
     // Get current film count to determine cover filename
     const filmCount = await Film.countDocuments();
-    const nextFilmNumber = 13 + filmCount; // Start at film13.png
+    const nextFilmNumber = filmCount + 1; // Start at film13.png
 
     // Create film without coverUrl - cover will be film[x].png
     const newFilm = new Film({

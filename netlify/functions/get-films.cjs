@@ -72,7 +72,7 @@ exports.handler = async (event, context) => {
     const filmsWithCovers = films.map((film, index) => ({
       ...film,
       id: film._id.toString(),
-      cover: `/assets/film${13 + index}.png`, // film13.png, film14.png, etc.
+      cover: `/assets/film${index + 1}.png`,
       genre: Array.isArray(film.genre) ? film.genre : [film.genre],
     }));
 

@@ -40,19 +40,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Service Worker registration */}
         <script dangerouslySetInnerHTML={{
-          __html: `
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', async () => {
-                try {
-                  await navigator.serviceWorker.register('/sw.js');
-                } catch (err) {
-                  // Service Worker silencieusement ignoré si échec
-                }
-              });
-            }
-          `
+                  __html: `
+                    if ('serviceWorker' in navigator) {
+                      window.addEventListener('load', async () => {
+                        try {
+                          const isDev = window.location.hostname === 'localhost' || 
+                                      window.location.hostname === '127.0.0.1';
+                          console.log('[SW Registration] Environment:', isDev ? 'DEV' : 'PROD');
+                          
+                          const registration = await navigator.serviceWorker.register('/sw.js');
+                          console.log('[SW Registration] Success:', registration);
+                        } catch (err) {
+                          console.log('[SW Registration] Failed:', err);
+                        }
+                      });
+                    }
+                  `
         }} />
-
         {/* Google Analytics GA4 */}
         <script
           async

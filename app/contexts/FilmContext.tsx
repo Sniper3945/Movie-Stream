@@ -36,7 +36,7 @@ interface FilmProviderProps {
 }
 
 export const FilmProvider = ({ children }: FilmProviderProps) => {
-  const [films, setFilms] = useState<Film[]>(staticFilms); // ← Films statiques affichés immédiatement
+  const [films, setFilms] = useState<Film[]>(staticFilms);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,35 +44,39 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
     try {
       setLoading(true);
       
-      // Timeout de 4 secondes pour MongoDB
+      // Essayer MongoDB d'abord (avec timeout)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
       
-      const response = await fetch('/.netlify/functions/get-films', {
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const mongoFilms = await response.json();
+      try {
+        const response = await fetch('/.netlify/functions/get-films', {
+          signal: controller.signal,
+        });
         
-        if (mongoFilms && mongoFilms.length > 0) {
-          // Combine static films with MongoDB films
-          const allFilms = [...staticFilms, ...mongoFilms];
-          setFilms(allFilms);
-          setError(null);
-          return;
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const mongoFilms = await response.json();
+          
+          if (mongoFilms && mongoFilms.length > 0) {
+            setFilms(mongoFilms);
+            setError(null);
+            return;
+          }
         }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.log('MongoDB fetch failed, using static films:', fetchError);
       }
       
-      // Keep static films if MongoDB fails
+      // Fallback vers films statiques
       setFilms(staticFilms);
+      setError(null);
       
     } catch (error: any) {
-      // MongoDB timeout or error - keep static films
+      console.error('Error in fetchFilms:', error);
       setFilms(staticFilms);
-      setError(null); // Don't show error, just use fallback
+      setError(null);
     } finally {
       setLoading(false);
     }
