@@ -11,6 +11,7 @@ interface Film {
   year?: number;
   genre?: string | string[];
   videoUrl?: string;
+  ephemere?: boolean; // Ajout pour supporter les films éphémères
 }
 
 interface FilmContextType {

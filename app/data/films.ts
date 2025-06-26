@@ -9,7 +9,9 @@ export interface Film {
   description: string;
   year?: number;
   genre?: string[];
-  videoUrl?: string; // Add this property for compatibility
+  videoUrl?: string; 
+  director?: string;// Add this property for compatibility
+  ephemere?: boolean; // Ajout pour supporter les films éphémères
 }
 
 export const films: Film[] = [
@@ -22,6 +24,7 @@ export const films: Film[] = [
     year: 2010,
     genre: ["Biopic", "Drame"],
     videoUrl: "https://0x0.st/8IpD.mp4",
+    director: "Joann Sfar"
   },
   {
     id: "film2",
@@ -32,6 +35,7 @@ export const films: Film[] = [
     year: 1968,
     genre: ["Thriller", "Romance"],
     videoUrl: "https://0x0.st/8Ipf.mp4",
+    director: "Norman Jewison"
   },
   {
     id: "film3",
@@ -42,6 +46,7 @@ export const films: Film[] = [
     year: 1969,
     genre: ["Drame", "Thriller"],
     videoUrl: "https://0x0.st/8IpQ.mp4",
+    director: "Jacques Deray"
   },
   {
     id: "film4",
@@ -52,6 +57,7 @@ export const films: Film[] = [
     year: 1966,
     genre: ["Romance", "Drame"],
     videoUrl: "https://0x0.st/8IJ8.mp4",
+    director: "Claude Lelouch"
   },
   {
     id: "film5",
@@ -62,6 +68,7 @@ export const films: Film[] = [
     year: 1967,
     genre: ["Thriller", "Policier"],
     videoUrl: "https://0x0.st/8IId.mp4",
+    director: "Jean-Pierre Melville"
   },
   {
     id: "film6",
@@ -72,6 +79,7 @@ export const films: Film[] = [
     year: 1969,
     genre: ["Policier", "Thriller"],
     videoUrl: "https://0x0.st/8IvB.mp4",
+    director: "Henri Verneuil"
   },
   {
     id: "film7",
@@ -82,6 +90,7 @@ export const films: Film[] = [
     year: 1971,
     genre: ["Sci-Fi", "Drame"],
     videoUrl: "https://0x0.st/8ICS.mp4",
+    director: "Stanley Kubrick"
   },
   {
     id: "film8",
@@ -92,6 +101,7 @@ export const films: Film[] = [
     year: 1975,
     genre: ["Thriller", "Horreur"],
     videoUrl: "https://0x0.st/8ICg.mp4",
+    director: "Steven Spielberg"
   },
   {
     id: "film9",
@@ -102,6 +112,7 @@ export const films: Film[] = [
     year: 1976,
     genre: ["Drame", "Thriller"],
     videoUrl: "https://0x0.st/8IC1.mp4",
+    director: "Martin Scorsese"
   },
   {
     id: "film10",
@@ -112,6 +123,7 @@ export const films: Film[] = [
     year: 1995,
     genre: ["Thriller", "Policier"],
     videoUrl: "https://0x0.st/8Iv1.mp4",
+    director: "Bryan Singer"
   },
   {
     id: "film11",
@@ -122,6 +134,7 @@ export const films: Film[] = [
     year: 1979,
     genre: ["Drame", "Guerre"],
     videoUrl: "https://0x0.st/8lrT.mp4",
+    director: "Francis Ford Coppola"
   },
   {
     id: "film12",
@@ -132,6 +145,7 @@ export const films: Film[] = [
     year: 1963,
     genre: ["Drame", "Comédie"],
     videoUrl: "https://0x0.st/8lzm.mp4",
+    director: "Federico Fellini"
   },
 ];
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import AdminGuard from './admin.guard';
 
 export default function AdminUtilisateurs() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -55,27 +56,35 @@ export default function AdminUtilisateurs() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Gestion des Utilisateurs</h1>
+    <AdminGuard>
+      <div className="min-h-screen bg-black text-white p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold">Gestion des Utilisateurs</h1>
+            <button
+              onClick={() => navigate('/admin')}
+              className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
+            >
+              ← Retour Admin
+            </button>
+          </div>
+
+          <div className="bg-gray-900 p-6 rounded-lg">
+            <div className="text-center py-12">
+              <h3 className="text-xl mb-4">🚧 En construction</h3>
+              <p className="text-gray-400">
+                La gestion des utilisateurs sera disponible dans une prochaine version.
+              </p>
+            </div>
+          </div>
           <button
-            onClick={() => navigate('/admin/ajout')}
-            className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
+            onClick={() => navigate("/admin")}
+            className="text-white hover:text-gray-300 transition-colors"
           >
-            ← Retour Admin
+            Retour au dashboard
           </button>
         </div>
-
-        <div className="bg-gray-900 p-6 rounded-lg">
-          <div className="text-center py-12">
-            <h3 className="text-xl mb-4">🚧 En construction</h3>
-            <p className="text-gray-400">
-              La gestion des utilisateurs sera disponible dans une prochaine version.
-            </p>
-          </div>
-        </div>
       </div>
-    </div>
+    </AdminGuard>
   );
 }

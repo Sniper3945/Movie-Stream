@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import AdminGuard from './admin.guard';
 
 export default function AdminMigration() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -32,12 +33,12 @@ export default function AdminMigration() {
     }
   };
 
-  const runMigration = async () => {
+  const runUpdateDirectors = async () => {
     setIsRunning(true);
-    setMessage('Migration en cours...');
+    setMessage('Mise à jour des réalisateurs en cours...');
 
     try {
-      const response = await fetch('/.netlify/functions/migrate-genres', {
+      const response = await fetch('/.netlify/functions/update-directors', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,9 +48,9 @@ export default function AdminMigration() {
 
       const result = await response.json();
       setMigrationResult(result);
-      
+
       if (result.success) {
-        setMessage(`✅ Migration réussie ! ${result.stats.migratedCount} films mis à jour.`);
+        setMessage(`✅ Mise à jour réussie ! ${result.updatedCount} films modifiés.`);
       } else {
         setMessage(`❌ Erreur: ${result.error}`);
       }
@@ -85,81 +86,60 @@ export default function AdminMigration() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Migration des Genres</h1>
-          <button
-            onClick={() => navigate('/admin/ajout')}
-            className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
-          >
-            ← Retour Admin
-          </button>
-        </div>
-
-        <div className="bg-gray-900 p-6 rounded-lg space-y-6">
-          <div className="bg-yellow-900 bg-opacity-50 p-4 rounded-lg border border-yellow-700">
-            <h3 className="text-lg font-bold mb-2">⚠️ Attention</h3>
-            <p className="text-sm">
-              Cette opération va modifier tous les genres de films dans la base de données.
-              Assurez-vous d'avoir une sauvegarde avant de continuer.
-            </p>
+    <AdminGuard>
+      <div className="min-h-screen bg-black text-white p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold">Mise à jour des Réalisateurs</h1>
+            <button
+              onClick={() => navigate('/admin')}
+              className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg"
+            >
+              ← Retour Admin
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="font-bold mb-3">Mapping des Genres</h3>
-              <div className="space-y-2 text-sm max-h-64 overflow-y-auto">
-                <div><span className="text-gray-400">Policier</span> → <span className="text-green-400">Crime</span></div>
-                <div><span className="text-gray-400">Sci-Fi</span> → <span className="text-green-400">Science-Fiction</span></div>
-                <div><span className="text-gray-400">Espionnage</span> → <span className="text-green-400">Thriller</span></div>
-                <div><span className="text-gray-400">Drama</span> → <span className="text-green-400">Drame</span></div>
-                <div><span className="text-gray-400">Comedy</span> → <span className="text-green-400">Comédie</span></div>
-                <div className="text-gray-500">+ Conservation des genres valides existants</div>
-              </div>
+          <div className="bg-gray-900 p-6 rounded-lg space-y-6">
+            <div className="bg-yellow-900 bg-opacity-50 p-4 rounded-lg border border-yellow-700">
+              <h3 className="text-lg font-bold mb-2">⚠️ Attention</h3>
+              <p className="text-sm">
+                Cette opération va ajouter le champ "director" pour les 12 premiers films de la base.<br />
+                Assurez-vous d'avoir une sauvegarde avant de continuer.
+              </p>
             </div>
 
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="font-bold mb-3">Genres Disponibles</h3>
-              <div className="flex flex-wrap gap-1 text-xs">
-                {[
-                  "Action", "Aventure", "Animation", "Comédie", "Crime", "Documentaire",
-                  "Drame", "Familial", "Fantasy", "Histoire", "Horreur", "Musique",
-                  "Mystère", "Romance", "Science-Fiction", "Thriller", "Guerre", 
-                  "Western", "Biopic", "Policier", "Espionnage", "Catastrophe", "Survival"
-                ].map(genre => (
-                  <span key={genre} className="bg-blue-600 px-2 py-1 rounded-full">
-                    {genre}
-                  </span>
-                ))}
+            <button
+              onClick={runUpdateDirectors}
+              disabled={isRunning}
+              className="w-full bg-yellow-600 hover:bg-yellow-700 p-4 rounded-lg font-bold disabled:opacity-50"
+            >
+              {isRunning ? 'Mise à jour en cours...' : '🚀 Mettre à jour les Réalisateurs'}
+            </button>
+
+            {message && (
+              <div className={`p-4 rounded-lg text-center ${message.includes('✅') ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
+                {message}
               </div>
-            </div>
+            )}
+
+            {migrationResult && (
+              <div className="bg-gray-800 p-4 rounded-lg">
+                <h3 className="font-bold mb-3">Résultats de la mise à jour</h3>
+                <pre className="text-sm overflow-auto">
+                  {JSON.stringify(migrationResult, null, 2)}
+                </pre>
+              </div>
+            )}
           </div>
 
           <button
-            onClick={runMigration}
-            disabled={isRunning}
-            className="w-full bg-yellow-600 hover:bg-yellow-700 p-4 rounded-lg font-bold disabled:opacity-50"
+            onClick={() => navigate("/admin")}
+            className="text-white hover:text-gray-300 transition-colors"
           >
-            {isRunning ? 'Migration en cours...' : '🚀 Lancer la Migration'}
+            Retour au dashboard
           </button>
-
-          {message && (
-            <div className={`p-4 rounded-lg text-center ${message.includes('✅') ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>
-              {message}
-            </div>
-          )}
-
-          {migrationResult && (
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="font-bold mb-3">Résultats de la Migration</h3>
-              <pre className="text-sm overflow-auto">
-                {JSON.stringify(migrationResult, null, 2)}
-              </pre>
-            </div>
-          )}
         </div>
       </div>
-    </div>
+    </AdminGuard>
   );
-}
+};

@@ -54,11 +54,11 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("[SW] PROD MODE: Caching assets...");
+        // console.log("[SW] PROD MODE: Caching assets...");
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        console.log("[SW] Skip waiting...");
+        // console.log("[SW] Skip waiting...");
         return self.skipWaiting();
       })
       .catch((error) => {
@@ -96,14 +96,14 @@ self.addEventListener("activate", (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.log("[SW] PROD MODE: Deleting old cache:", cacheName);
+              // console.log("[SW] PROD MODE: Deleting old cache:", cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
       .then(() => {
-        console.log("[SW] Claiming clients...");
+        // console.log("[SW] Claiming clients...");
         return self.clients.claim();
       })
   );
@@ -117,7 +117,7 @@ self.addEventListener("fetch", (event) => {
 
   // En développement : pas de cache du tout
   if (isDev) {
-    console.log("[SW] DEV MODE: Bypassing cache for", event.request.url);
+    // console.log("[SW] DEV MODE: Bypassing cache for", event.request.url);
     return; // Laisser le navigateur gérer normalement
   }
 
@@ -126,7 +126,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request).then((response) => {
       // Return cached version or fetch from network
       if (response) {
-        console.log("[SW] PROD MODE: Serving from cache:", event.request.url);
+        // console.log("[SW] PROD MODE: Serving from cache:", event.request.url);
         return response;
       }
 
@@ -149,7 +149,7 @@ self.addEventListener("fetch", (event) => {
             .then((cache) => {
               // Only cache GET requests to same origin
               if (canCacheRequest(event.request)) {
-                console.log("[SW] PROD MODE: Caching:", event.request.url);
+                // console.log("[SW] PROD MODE: Caching:", event.request.url);
                 cache.put(event.request, responseToCache);
               }
             })

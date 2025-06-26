@@ -36,8 +36,7 @@ export default function Index() {
     { value: "year-asc", label: "Année (croissant)" },
     { value: "year-desc", label: "Année (décroissant)" },
     { value: "duration-asc", label: "Durée (courte)" },
-    { value: "duration-desc", label: "Durée (longue)" },
-    { value: "genre", label: "Par genre" }
+    { value: "duration-desc", label: "Durée (longue)" }
   ];
 
   // Convertir la durée en minutes pour le tri
@@ -97,10 +96,10 @@ export default function Index() {
         }
 
         // Search by genre
-        if (film.genre) {
-          const genres = Array.isArray(film.genre) ? film.genre : [film.genre];
-          return genres.some(genre => genre.toLowerCase().includes(query));
-        }
+        // if (film.genre) {
+        //   const genres = Array.isArray(film.genre) ? film.genre : [film.genre];
+        //   return genres.some(genre => genre.toLowerCase().includes(query));
+        // }
 
         return false;
       });
@@ -126,13 +125,13 @@ export default function Index() {
       case "duration-desc":
         result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration));
         break;
-      case "genre":
-        result.sort((a, b) => {
-          const genreA = Array.isArray(a.genre) ? a.genre[0] : a.genre || "";
-          const genreB = Array.isArray(b.genre) ? b.genre[0] : b.genre || "";
-          return genreA.localeCompare(genreB);
-        });
-        break;
+      // case "genre":
+      //   result.sort((a, b) => {
+      //     const genreA = Array.isArray(a.genre) ? a.genre[0] : a.genre || "";
+      //     const genreB = Array.isArray(b.genre) ? b.genre[0] : b.genre || "";
+      //     return genreA.localeCompare(genreB);
+      //   });
+      //   break;
       default:
         // Garder l'ordre par défaut (par ID ou date de création)
         break;
@@ -214,10 +213,14 @@ export default function Index() {
     );
   }
 
+  // Séparer les films éphémères et non éphémères
+  const ephemereFilms = filteredAndSortedFilms.filter(film => film.ephemere);
+  const regularFilms = filteredAndSortedFilms.filter(film => !film.ephemere);
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <header className="bg-[#0D0D0D] py-4 px-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
+      <header className="bg-[#0D0D0D] py-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between">
           
           {/* Desktop Layout */}
@@ -407,6 +410,58 @@ export default function Index() {
 
       {/* Main content */}
       <main className="container mx-auto px-4 md:px-8 py-8 flex-grow">
+        {/* Section Éphémère */}
+        {ephemereFilms.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold mb-6  flex items-center">
+              Film Éphémère
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
+              {ephemereFilms.map((film, index) => (
+                <Link
+                  key={film.id}
+                  to={`/watch/${film.id}`}
+                  className="movie-card block group"
+                  onClick={() => trackFilmClick(film.title, index)}
+                >
+                  <div className="relative">
+                    <img 
+                      alt={`Affiche du film ${film.title}`} 
+                      className="w-full aspect-[2/3] object-cover rounded-lg" 
+                      src={film.cover}
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/assets/placeholder.png";
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
+                      <div className="p-3 w-full">
+                        <h3 className="font-semibold text-sm sm:text-base text-white leading-tight mb-1">{film.title}</h3>
+                        <p className="text-xs text-gray-300 mb-2">
+                          {film.year} • {film.duration}
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {(Array.isArray(film.genre) ? film.genre : film.genre?.split(', ') || [])
+                            .slice(0, 2)
+                            .map((genre, genreIndex) => (
+                            <span
+                              key={genreIndex}
+                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white ${getGenreColor(genre.trim())}`}
+                            >
+                              {genre.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+        {/* Section À l'affiche (hors éphémère) */}
         <section className="mb-12">
           <div className="flex flex-col sm:flex-row items-start sm:items-center mb-6 space-y-2 sm:space-y-0 sm:space-x-4">
             <h2 className="text-2xl font-semibold">
@@ -420,7 +475,7 @@ export default function Index() {
             {(searchQuery || sortBy !== "default") && (
               <div className="flex items-center gap-x-4">
                 <span className="text-sm text-gray-400">
-                  {filteredAndSortedFilms.length} film{filteredAndSortedFilms.length !== 1 ? 's' : ''}
+                  {regularFilms.length} film{regularFilms.length !== 1 ? 's' : ''}
                 </span>
                 <button
                   onClick={() => {
@@ -434,8 +489,7 @@ export default function Index() {
               </div>
             )}
           </div>
-          
-          {filteredAndSortedFilms.length === 0 && searchQuery ? (
+          {regularFilms.length === 0 && searchQuery ? (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
                 <span className="material-icons text-6xl mb-4 block">search_off</span>
@@ -456,7 +510,7 @@ export default function Index() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
-              {filteredAndSortedFilms.map((film, index) => (
+              {regularFilms.map((film, index) => (
                 <Link
                   key={film.id}
                   to={`/watch/${film.id}`}
@@ -474,8 +528,6 @@ export default function Index() {
                         target.src = "/assets/placeholder.png";
                       }}
                     />
-                    
-                    {/* Hover overlay avec info - visible sur desktop et mobile */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
                       <div className="p-3 w-full">
                         <h3 className="font-semibold text-sm sm:text-base text-white leading-tight mb-1">{film.title}</h3>

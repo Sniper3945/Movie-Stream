@@ -24,6 +24,7 @@ const filmSchema = new mongoose.Schema({
   videoUrl: { type: String, required: true },
   director: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
+  ephemere: { type: Boolean, default: false }, // Ajout du champ éphémère
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);
@@ -87,8 +88,16 @@ exports.handler = async (event, context) => {
     const formData = JSON.parse(event.body);
 
     // Validation des données
-    const { title, duration, year, genre, description, videoUrl, director } =
-      formData;
+    const {
+      title,
+      duration,
+      year,
+      genre,
+      description,
+      videoUrl,
+      director,
+      ephemere,
+    } = formData;
 
     if (!title || !duration || !year || !genre || !description || !videoUrl) {
       return {
@@ -114,6 +123,7 @@ exports.handler = async (event, context) => {
       description: decryptData(description),
       videoUrl: decryptData(videoUrl),
       director: director || "",
+      ephemere: !!ephemere, // Ajout du champ éphémère
     });
 
     const savedFilm = await newFilm.save();

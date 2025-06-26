@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useFilms } from '../contexts/FilmContext';
+import Hls from "hls.js";
 
 // Fonction pour obtenir la couleur d'un genre - couleur grise uniforme
 const getGenreColor = (genreName: string) => {
@@ -21,6 +22,7 @@ export default function Watch() {
   const [currentFilm, setCurrentFilm] = useState<any>(null);
   const [isVideoLoading, setIsVideoLoading] = useState(true);
   const [videoError, setVideoError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (films.length > 0 && id) {
@@ -33,6 +35,58 @@ export default function Watch() {
     }
   }, [films, id, navigate]);
 
+  useEffect(() => {
+    const hlsUrl = currentFilm?.ephemere ? currentFilm?.videoUrl : undefined;
+    if (
+      currentFilm &&
+      currentFilm.ephemere &&
+      hlsUrl &&
+      videoRef.current
+    ) {
+      console.log("[HLS] Ready to init HLS", { currentFilm, hlsUrl, videoRef: videoRef.current });
+      let hls: Hls | null = null;
+
+      if (Hls.isSupported()) {
+        console.log("[HLS] Hls.js is supported");
+        hls = new Hls();
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log("[HLS] Manifest chargé, lecture possible.");
+          setIsVideoLoading(false);
+        });
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          console.error("[HLS] Erreur HLS :", data);
+          setVideoError(true);
+          setIsVideoLoading(false);
+        });
+      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
+        console.log("[HLS] Lecture native HLS possible.");
+        videoRef.current.src = hlsUrl;
+        videoRef.current.addEventListener('loadedmetadata', () => {
+          console.log("[HLS] Métadonnées chargées, lecture possible.");
+          setIsVideoLoading(false);
+        });
+        videoRef.current.addEventListener('error', (e) => {
+          console.error("[HLS] Erreur native lors du chargement de la vidéo.", e);
+          setVideoError(true);
+          setIsVideoLoading(false);
+        });
+      } else {
+        console.warn("[HLS] HLS non supporté sur ce navigateur.");
+        setVideoError(true);
+        setIsVideoLoading(false);
+      }
+
+      return () => {
+        if (hls) {
+          console.log("[HLS] Destruction du lecteur HLS.");
+          hls.destroy();
+        }
+      };
+    }
+  }, [currentFilm, videoRef.current]);
+
   if (loading || !currentFilm) {
     return (
       <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
@@ -44,10 +98,13 @@ export default function Watch() {
     );
   }
 
+  // Ajoute ce log juste avant le return principal
+  console.log("[DEBUG] currentFilm.videoUrl =", currentFilm.videoUrl);
+
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
       {/* Header */}
-      <header className="bg-[#0D0D0D] py-4 px-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
+      <header className="bg-[#0D0D0D] py-4  md:px-8 sticky top-0 z-50 border-b border-gray-700">
         <div className="container mx-auto flex items-center justify-between">
           <button
             onClick={() => navigate('/')}
@@ -94,6 +151,18 @@ export default function Watch() {
                 </button>
               </div>
             </div>
+          ) : currentFilm.ephemere && currentFilm.videoUrl ? (
+            <video
+              ref={videoRef}
+              className="w-full h-full"
+              controls
+              autoPlay
+              onLoadStart={() => setIsVideoLoading(true)}
+              onError={() => {
+                setVideoError(true);
+                setIsVideoLoading(false);
+              }}
+            />
           ) : (
             <video
               className="w-full h-full"
@@ -133,10 +202,6 @@ export default function Watch() {
                   {currentFilm.director}
                 </div>
               )}
-              <div className="flex items-center text-gray-400">
-                <span className="material-icons text-sm mr-1">star</span>
-                8.5/10
-              </div>
             </div>
 
             {/* Genre Tags */}
@@ -164,7 +229,7 @@ export default function Watch() {
           {/* Sidebar */}
           <div className="lg:col-span-1">
             {/* Film Details */}
-            <div className="bg-gray-900 rounded-lg p-6">
+            <div className="bg-gray-900 rounded-lg p-4">
               <h3 className="text-lg font-semibold mb-4">Détails du film</h3>
               <div className="space-y-3">
                 {currentFilm.director && (
@@ -194,7 +259,7 @@ export default function Watch() {
       {/* Footer */}
       <footer className="bg-[#0D0D0D] border-t border-gray-700 mt-auto">
         <div className="container mx-auto px-4 md:px-8 py-8">
-          <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
+          <div className="flex flex-col md:flex-row justify-center items-center text-sm text-gray-400">
             <p>© 2025 MovieStream. Tous droits réservés.</p>
           </div>
         </div>

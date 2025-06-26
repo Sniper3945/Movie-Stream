@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import AdminGuard from "./admin.guard";
+import { useNavigate } from "react-router";
 
 interface EnvData {
   environmentVariables: {
@@ -30,7 +32,8 @@ interface IpData {
   timestamp: string;
 }
 
-export default function Debug() {
+function Debug() {
+  const navigate = useNavigate();
   const [envData, setEnvData] = useState<EnvData | null>(null);
   const [mongoTest, setMongoTest] = useState<MongoTest | null>(null);
   const [ipData, setIpData] = useState<IpData | null>(null);
@@ -182,12 +185,27 @@ export default function Debug() {
         </div>
       )}
 
-      <a 
-        href="/" 
+      <button
+        onClick={() => navigate("/admin")}
         className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-3 rounded-lg transition-colors"
       >
-        ← Retour à l'accueil
-      </a>
+        ← Retour Admin
+      </button>
     </div>
+  );
+}
+
+export default function DebugPage() {
+  const navigate = useNavigate();
+  return (
+    <AdminGuard>
+      <Debug />
+      <button
+        onClick={() => navigate("/admin")}
+        className="text-white hover:text-gray-300 transition-colors"
+      >
+        Retour au dashboard
+      </button>
+    </AdminGuard>
   );
 }

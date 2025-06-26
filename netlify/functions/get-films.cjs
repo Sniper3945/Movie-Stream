@@ -17,6 +17,7 @@ const filmSchema = new mongoose.Schema({
   videoUrl: { type: String, required: true },
   director: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
+  ephemere: { type: Boolean, default: false }, // Ajout pour exposer le champ éphémère
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);
@@ -72,6 +73,7 @@ exports.handler = async (event, context) => {
         description: film.description,
         videoUrl: film.videoUrl,
         director: film.director || "",
+        ephemere: film.ephemere || false, // Expose le champ éphémère côté client
         cover: `/assets/film${index + 1}.png`,
       }));
     } catch (dbError) {
