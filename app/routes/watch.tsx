@@ -43,16 +43,13 @@ export default function Watch() {
       hlsUrl &&
       videoRef.current
     ) {
-      console.log("[HLS] Ready to init HLS", { currentFilm, hlsUrl, videoRef: videoRef.current });
       let hls: Hls | null = null;
 
       if (Hls.isSupported()) {
-        console.log("[HLS] Hls.js is supported");
         hls = new Hls();
         hls.loadSource(hlsUrl);
         hls.attachMedia(videoRef.current);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          console.log("[HLS] Manifest chargé, lecture possible.");
           setIsVideoLoading(false);
         });
         hls.on(Hls.Events.ERROR, (event, data) => {
@@ -61,10 +58,8 @@ export default function Watch() {
           setIsVideoLoading(false);
         });
       } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-        console.log("[HLS] Lecture native HLS possible.");
         videoRef.current.src = hlsUrl;
         videoRef.current.addEventListener('loadedmetadata', () => {
-          console.log("[HLS] Métadonnées chargées, lecture possible.");
           setIsVideoLoading(false);
         });
         videoRef.current.addEventListener('error', (e) => {
@@ -73,19 +68,51 @@ export default function Watch() {
           setIsVideoLoading(false);
         });
       } else {
-        console.warn("[HLS] HLS non supporté sur ce navigateur.");
         setVideoError(true);
         setIsVideoLoading(false);
       }
 
       return () => {
         if (hls) {
-          console.log("[HLS] Destruction du lecteur HLS.");
           hls.destroy();
         }
       };
     }
   }, [currentFilm, videoRef.current]);
+
+  // Récupère l'id du film (ex: via useParams ou props)
+  const filmId = id;
+
+  // Charger la position sauvegardée au montage
+  useEffect(() => {
+    const savedTime = localStorage.getItem(`film-progress-${filmId}`);
+    if (videoRef.current && savedTime) {
+      videoRef.current.currentTime = parseFloat(savedTime);
+    }
+  }, [filmId]);
+
+  // Sauvegarder la position régulièrement
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const saveProgress = () => {
+      localStorage.setItem(`film-progress-${filmId}`, String(video.currentTime));
+    };
+    video.addEventListener("timeupdate", saveProgress);
+    return () => {
+      video.removeEventListener("timeupdate", saveProgress);
+      // Sauvegarde finale à la sortie
+      saveProgress();
+    };
+  }, [filmId]);
+
+  // Sauvegarde la position de scroll de l'accueil juste avant de quitter pour aller sur /watch/*
+  useEffect(() => {
+    // Cette logique est mieux placée dans la page d'accueil (_index.tsx) au moment du clic sur un film.
+    // Mais si tu veux le faire ici, tu peux utiliser la navigation type "popstate" ou "beforeunload" pour détecter le retour.
+    // Cependant, la méthode la plus fiable en React est de sauvegarder le scroll AVANT de naviguer, dans le handler du clic sur le film (dans _index.tsx).
+    // Ici, on ne fait rien de plus.
+  }, []);
 
   if (loading || !currentFilm) {
     return (
@@ -97,9 +124,6 @@ export default function Watch() {
       </div>
     );
   }
-
-  // Ajoute ce log juste avant le return principal
-  console.log("[DEBUG] currentFilm.videoUrl =", currentFilm.videoUrl);
 
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
@@ -267,6 +291,5 @@ export default function Watch() {
     </div>
   );
 };
-
 
 

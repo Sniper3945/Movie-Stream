@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { useFilms } from "../contexts/FilmContext";
 import { trackFilmClick } from "../utils/analytics";
-
+import Fuse from "fuse.js";
 export function meta() {
   return [
     { title: "MovieStream - Films en streaming" },
@@ -62,49 +62,20 @@ export default function Index() {
   const filteredAndSortedFilms = useMemo(() => {
     let result = [...films];
 
-    // Filtrage par recherche
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(film => {
-        // Search by title
-        if (film.title.toLowerCase().includes(query)) {
-          return true;
-        }
-
-        // Search by exact year
-        if (film.year && film.year.toString() === query) {
-          return true;
-        }
-
-        // Search by década (handle "Années XXXs" format)
-        if (query.startsWith('années ') && query.endsWith('s')) {
-          const decadeStr = query.replace('années ', '').replace('s', '');
-          const decade = parseInt(decadeStr);
-          if (!isNaN(decade) && film.year) {
-            const filmDecade = Math.floor(film.year / 10) * 10;
-            return filmDecade === decade;
-          }
-        }
-
-        // Search by decade (e.g., "1960" matches 1960-1969)
-        if (query.length === 4 && /^\d{4}$/.test(query)) {
-          const searchYear = parseInt(query);
-          const decade = Math.floor(searchYear / 10) * 10;
-          const filmDecade = film.year ? Math.floor(film.year / 10) * 10 : null;
-          
-          if (filmDecade === decade) {
-            return true;
-          }
-        }
-
-        // Search by genre
-        // if (film.genre) {
-        //   const genres = Array.isArray(film.genre) ? film.genre : [film.genre];
-        //   return genres.some(genre => genre.toLowerCase().includes(query));
-        // }
-
-        return false;
+      const fuse = new Fuse(films, {
+        keys: [
+          "title",
+          {
+            name: "genre",
+            getFn: (film) => Array.isArray(film.genre) ? film.genre : (film.genre ? film.genre.split(",") : []),
+          },
+          "year"
+        ],
+        threshold: 0.4, // Ajuste la tolérance (0 = strict, 1 = très permissif)
       });
+
+      result = fuse.search(searchQuery.trim()).map(res => res.item);
     }
 
     // Tri
@@ -157,10 +128,12 @@ export default function Index() {
       
       // Suggestions par genre
       if (film.genre) {
-        const genres = Array.isArray(film.genre) ? film.genre : [film.genre];
+        const genres = Array.isArray(film.genre)
+          ? film.genre
+          : film.genre.split(','); // Découpe la chaîne en genres individuels
         genres.forEach(genre => {
           if (genre.toLowerCase().includes(lowerQuery)) {
-            suggestions.add(genre);
+            suggestions.add(genre.trim());
           }
         });
       }
@@ -203,6 +176,53 @@ export default function Index() {
     const option = sortOptions.find(opt => opt.value === sortBy);
     return option ? option.label : "Trier par";
   };
+
+  // Gestion du scroll : restauration/sauvegarde uniquement retour depuis watch
+  const lastRouteRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Détecte si on vient de /watch/*
+    const referrer = document.referrer;
+    const isBackFromWatch =
+      referrer &&
+      (referrer.includes("/watch/") || referrer.includes("/watch"));
+
+    // Si on vient de watch, restore le scroll
+    if (isBackFromWatch) {
+      setTimeout(() => {
+        const scrollY = localStorage.getItem("home-scroll");
+        if (scrollY) {
+          window.scrollTo(0, parseInt(scrollY, 10));
+          console.log("[Scroll Restore] scrollY =", scrollY);
+        }
+      }, 0);
+    } else {
+      // Si reload ou accès direct, reset la variable
+      localStorage.removeItem("home-scroll");
+    }
+
+    // Sauvegarde la position à chaque scroll (sans log flood)
+    let lastScroll = window.scrollY;
+    let lastSave = Date.now();
+
+    const saveScroll = () => {
+      const now = Date.now();
+      if (Math.abs(window.scrollY - lastScroll) > 100 || now - lastSave > 2000) {
+        lastScroll = window.scrollY;
+        lastSave = now;
+        console.log("[Scroll Save] scrollY =", window.scrollY);
+      }
+      localStorage.setItem("home-scroll", String(window.scrollY));
+    };
+    window.addEventListener("scroll", saveScroll);
+
+    // Sauvegarde aussi à l'unmount (log final)
+    return () => {
+      localStorage.setItem("home-scroll", String(window.scrollY));
+      console.log("[Scroll Save] scrollY =", window.scrollY);
+      window.removeEventListener("scroll", saveScroll);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -248,7 +268,26 @@ export default function Index() {
                 onFocus={() => searchQuery && setShowSearchSuggestions(searchSuggestions.length > 0)}
                 onBlur={() => setTimeout(() => setShowSearchSuggestions(false), 200)}
               />
-              <span className="material-icons absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg">search</span>
+              {/* Icône croix si texte, sinon loupe */}
+              {searchQuery ? (
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-400 text-base focus:outline-none"
+                  onClick={() => setSearchQuery("")}
+                  tabIndex={-1}
+                  aria-label="Effacer la recherche"
+                  style={{ width: 24, height: 24, padding: 0 }}
+                >
+                  <span className="material-icons" style={{ fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>close</span>
+                </button>
+              ) : (
+                <span
+                  className="material-icons absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg flex items-center justify-center"
+                  style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  search
+                </span>
+              )}
               
               {/* Suggestions dropdown */}
               {showSearchSuggestions && (
@@ -328,7 +367,26 @@ export default function Index() {
                   onFocus={() => searchQuery && setShowSearchSuggestions(searchSuggestions.length > 0)}
                   onBlur={() => setTimeout(() => setShowSearchSuggestions(false), 200)}
                 />
-                <span className="material-icons absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg">search</span>
+                {/* Icône croix si texte, sinon loupe */}
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-400 text-base focus:outline-none"
+                    onClick={() => setSearchQuery("")}
+                    tabIndex={-1}
+                    aria-label="Effacer la recherche"
+                    style={{ width: 24, height: 24, padding: 0 }}
+                  >
+                    <span className="material-icons" style={{ fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>close</span>
+                  </button>
+                ) : (
+                  <span
+                    className="material-icons absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg flex items-center justify-center"
+                    style={{ fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    search
+                  </span>
+                )}
                 
                 {/* Mobile suggestions dropdown */}
                 {showSearchSuggestions && (
@@ -412,107 +470,177 @@ export default function Index() {
 
       {/* Main content */}
       <main className="container mx-auto px-4 md:px-8 py-8 flex-grow">
-        {/* Section Éphémère */}
-        {ephemereFilms.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-semibold mb-6  flex items-center">
-              Film Éphémère
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
-              {ephemereFilms.map((film, index) => (
-                <Link
-                  key={film.id}
-                  to={`/watch/${film.id}`}
-                  className="movie-card block group"
-                  onClick={() => trackFilmClick(film.title, index)}
-                >
-                  <div className="relative">
-                    <img 
-                      alt={`Affiche du film ${film.title}`} 
-                      className="w-full aspect-[2/3] object-cover rounded-lg" 
-                      src={film.cover}
-                      loading="lazy"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = "/assets/placeholder.png";
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
-                      <div className="p-3 w-full">
-                        <h3 className="font-semibold text-sm sm:text-base text-white leading-tight mb-1">{film.title}</h3>
-                        <p className="text-xs text-gray-300 mb-2">
-                          {film.year} • {film.duration}
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {(Array.isArray(film.genre) ? film.genre : film.genre?.split(', ') || [])
-                            .slice(0, 2)
-                            .map((genre, genreIndex) => (
-                            <span
-                              key={genreIndex}
-                              className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white ${getGenreColor(genre.trim())}`}
-                            >
-                              {genre.trim()}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-        {/* Section À l'affiche (hors éphémère) */}
-        <section className="mb-12">
+
+        {/* Bandeau résultats de recherche en haut */}
+        {searchQuery && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center mb-6 space-y-2 sm:space-y-0 sm:space-x-4">
             <h2 className="text-2xl font-semibold">
-              {searchQuery ? `Résultats de recherche pour "${searchQuery}"` : "À l'affiche"}
-              {sortBy !== "default" && (
-                <span className="block sm:inline text-sm text-gray-400 sm:ml-2">
-                  • {getCurrentSortLabel()}
-                </span>
-              )}
+              Résultats de recherche pour "{searchQuery}"
+              <span className="block sm:inline text-sm text-gray-400 sm:ml-2">
+                {sortBy !== "default" && <>• {getCurrentSortLabel()} </>}
+                {regularFilms.length + ephemereFilms.length} film{(regularFilms.length + ephemereFilms.length) !== 1 ? "s" : ""}
+              </span>
             </h2>
-            {(searchQuery || sortBy !== "default") && (
+            {(sortBy !== "default" || searchQuery) && (
               <div className="flex items-center gap-x-4">
-                <span className="text-sm text-gray-400">
-                  {regularFilms.length} film{regularFilms.length !== 1 ? 's' : ''}
-                </span>
+                {sortBy !== "default" && (
+                  <button
+                    onClick={() => setSortBy("default")}
+                    className="min-h-0 h-[20px] p-4 px-2 text-xs leading-none bg-gray-700 hover:bg-gray-600 rounded inline-flex items-center justify-center"
+                  >
+                    <span className="leading-none inline-block">Réinitialiser le tri</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setSearchQuery("");
                     setSortBy("default");
                   }}
-                  className="min-h-0 h-[20px] p-4 px-2 text-xs leading-none bg-gray-700 hover:bg-gray-600 rounded inline-flex items-center justify-center"
+                  className="min-h-0 h-[20px] p-4 px-2 text-xs leading-none bg-gray-700 hover:bg-gray-600 rounded inline-flex items-center justify-center ml-0 sm:ml-4"
                 >
                   <span className="leading-none inline-block">Réinitialiser</span>
                 </button>
               </div>
             )}
           </div>
-          {regularFilms.length === 0 && searchQuery ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <span className="material-icons text-6xl mb-4 block">search_off</span>
-                <p className="text-xl mb-2">Aucun film trouvé</p>
-                <p className="text-sm">
-                  Essayez de rechercher par titre, année (ex: 1967) ou décennie (ex: 1960 pour les années 60)
-                </p>
+        )}
+
+        {/* Bandeau de tri en haut si tri actif et pas de recherche */}
+        {!searchQuery && sortBy !== "default" && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center mb-6 space-y-2 sm:space-y-0 sm:space-x-4">
+            <h2 className="text-2xl font-semibold">
+              Tri : {getCurrentSortLabel()}
+              <span className="block sm:inline text-sm text-gray-400 sm:ml-2">
+                {regularFilms.length + ephemereFilms.length} film{(regularFilms.length + ephemereFilms.length) !== 1 ? "s" : ""}
+              </span>
+            </h2>
+            <button
+              onClick={() => setSortBy("default")}
+              className="min-h-0 h-[20px] p-4 px-2 text-xs leading-none bg-gray-700 hover:bg-gray-600 rounded inline-flex items-center justify-center ml-0 sm:ml-4"
+            >
+              <span className="leading-none inline-block">Réinitialiser le tri</span>
+            </button>
+          </div>
+        )}
+
+        {/* Affichage catalogue séparé (par défaut, pas de tri, pas de recherche) */}
+        {!searchQuery && sortBy === "default" && (
+          <>
+            {/* Section Éphémère */}
+            {ephemereFilms.length > 0 && (
+              <section className="mb-12">
+                <h2 className="text-2xl font-semibold mb-6 flex items-center">
+                  Film Éphémère
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
+                  {ephemereFilms.map((film, index) => (
+                    <Link
+                      key={film.id}
+                      to={`/watch/${film.id}`}
+                      className="movie-card block group"
+                      onClick={() => trackFilmClick(film.title, index)}
+                    >
+                      <div className="relative">
+                        <img 
+                          alt={`Affiche du film ${film.title}`} 
+                          className="w-full aspect-[2/3] object-cover rounded-lg" 
+                          src={film.cover}
+                          loading="lazy"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = "/assets/placeholder.png";
+                          }}
+                        />
+                        {/* Badge éphémère */}
+                        <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-10">
+                          Éphémère
+                        </span>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
+                          <div className="p-3 w-full">
+                            <h3 className="font-semibold text-sm sm:text-base text-white leading-tight mb-1">{film.title}</h3>
+                            <p className="text-xs text-gray-300 mb-2">
+                              {film.year} • {film.duration}
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {(Array.isArray(film.genre) ? film.genre : film.genre?.split(', ') || [])
+                                .slice(0, 2)
+                                .map((genre, genreIndex) => (
+                                <span
+                                  key={genreIndex}
+                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white ${getGenreColor(genre.trim())}`}
+                                >
+                                  {genre.trim()}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Section À l'affiche */}
+            <section className="mb-12">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center mb-6 space-y-2 sm:space-y-0 sm:space-x-4">
+                <h2 className="text-2xl font-semibold">
+                  À l'affiche
+                </h2>
               </div>
-              <button 
-                onClick={() => {
-                  setSearchQuery("");
-                  setSortBy("default");
-                }}
-                className="swiss-button px-6 py-2 rounded-lg hover:bg-opacity-80 transition-colors"
-              >
-                Voir tous les films
-              </button>
-            </div>
-          ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
+                {regularFilms.map((film, index) => (
+                  <Link
+                    key={film.id}
+                    to={`/watch/${film.id}`}
+                    className="movie-card block group"
+                    onClick={() => trackFilmClick(film.title, index)}
+                  >
+                    <div className="relative">
+                      <img 
+                        alt={`Affiche du film ${film.title}`} 
+                        className="w-full aspect-[2/3] object-cover rounded-lg" 
+                        src={film.cover}
+                        loading="lazy"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "/assets/placeholder.png";
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
+                        <div className="p-3 w-full">
+                          <h3 className="font-semibold text-sm sm:text-base text-white leading-tight mb-1">{film.title}</h3>
+                          <p className="text-xs text-gray-300 mb-2">
+                            {film.year} • {film.duration}
+                          </p>
+                          <div className="flex flex-wrap gap-1">
+                            {(Array.isArray(film.genre) ? film.genre : film.genre?.split(', ') || [])
+                              .slice(0, 2)
+                              .map((genre, genreIndex) => (
+                              <span
+                                key={genreIndex}
+                                className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white ${getGenreColor(genre.trim())}`}
+                              >
+                                {genre.trim()}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* Affichage catalogue mélangé (tri actif ou recherche) */}
+        {(searchQuery || sortBy !== "default") && (
+          <section>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
-              {regularFilms.map((film, index) => (
+              {filteredAndSortedFilms.map((film, index) => (
                 <Link
                   key={film.id}
                   to={`/watch/${film.id}`}
@@ -530,6 +658,12 @@ export default function Index() {
                         target.src = "/assets/placeholder.png";
                       }}
                     />
+                    {/* Badge éphémère si besoin */}
+                    {film.ephemere && (
+                      <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-10">
+                        Éphémère
+                      </span>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
                       <div className="p-3 w-full">
                         <h3 className="font-semibold text-sm sm:text-base text-white leading-tight mb-1">{film.title}</h3>
@@ -554,8 +688,29 @@ export default function Index() {
                 </Link>
               ))}
             </div>
-          )}
-        </section>
+            {regularFilms.length + ephemereFilms.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <span className="material-icons text-6xl mb-4 block">search_off</span>
+                  <p className="text-xl mb-2">Aucun film trouvé</p>
+                  <p className="text-sm">
+                    Essayez de rechercher par titre, année (ex: 1967) ou décennie (ex: 1960 pour les années 60)
+                  </p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setSearchQuery("");
+                    setSortBy("default");
+                  }}
+                  className="swiss-button px-6 py-2 rounded-lg hover:bg-opacity-80 transition-colors"
+                >
+                  Voir tous les films
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
       </main>
 
       {/* Footer */}
