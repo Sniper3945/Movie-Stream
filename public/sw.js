@@ -1,6 +1,6 @@
 // Service Worker pour MovieStream : gestion du cache versionné
 
-const CACHE_VERSION = "2025-06-27-2"; // Doit correspondre au meta version (le dernier digit correspond à la version du service worker donc au nombre de modif fait.)
+const CACHE_VERSION = "2025-06-27-3"; // Doit correspondre au meta version (le dernier digit correspond à la version du service worker donc au nombre de modif fait.)
 const CACHE_NAME = `moviestream-cache-v${CACHE_VERSION}`;
 
 self.addEventListener("install", (event) => {
