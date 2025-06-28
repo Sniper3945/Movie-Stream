@@ -131,7 +131,7 @@ export default function Watch() {
       <header className="bg-[#0D0D0D] py-4  md:px-8 sticky top-0 z-50 border-b border-gray-700">
         <div className="container mx-auto flex items-center justify-between">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             className="flex items-center text-white hover:text-gray-300 transition-colors"
           >
             <span className="material-icons mr-2">arrow_back</span>

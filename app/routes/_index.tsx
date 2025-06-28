@@ -4,7 +4,6 @@ import { useFilms } from "../contexts/FilmContext";
 import { trackFilmClick } from "../utils/analytics";
 import Fuse from "fuse.js";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
-
 export function meta() {
   return [
     { title: "MovieStream - Films en streaming" },
@@ -13,7 +12,7 @@ export function meta() {
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
     // Ajout d'un meta version pour forcer le cache à se rafraîchir
-    { name: "version", content: "2025-06-27-3" }
+    { name: "version", content: "2025-06-28-1" }
   ];
 }
 
@@ -21,7 +20,7 @@ export function meta() {
 const getGenreColor = (genreName: string) => {
   return 'bg-gray-600'; // Couleur grise pour s'harmoniser avec le thème
 };
-
+// const { save } = useScrollRestoration({ key: "home", debug: true });
 export default function Index() {
   const { films, loading, error } = useFilms();
   const [searchQuery, setSearchQuery] = useState("");
@@ -180,46 +179,72 @@ export default function Index() {
   };
 
   // Utilise le hook pour la page d'accueil (clé unique)
-  const { save } = useScrollRestoration({ key: "home", enabled: true });
+  const { save: saveScrollPosition } = useScrollRestoration({ 
+    key: "home",
+    enabled: true,
+    debug: true,
+    restoreDelay: 50,
+    saveThrottle: 150
+  });
 
   useEffect(() => {
-    console.log("[ScrollRestoration] useEffect mount");
-
     // Restaure la position de scroll si elle existe (SPA ou retour)
     setTimeout(() => {
       const sessionScroll = sessionStorage.getItem("scroll-restoration:home");
+      // ...détection popstate/navType si tu veux garder la logique avancée...
       if (sessionScroll) {
         try {
-          const { y } = JSON.parse(sessionScroll);
-          window.scrollTo({ top: y, behavior: "instant" });
-          console.log("[ScrollRestoration] Restored from sessionStorage to", y);
+          const { y, x } = JSON.parse(sessionScroll);
+          let tries = 0;
+          const maxTries = 30;
+          const tryRestore = () => {
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            const targetY = Math.min(y, maxScroll);
+            window.scrollTo({ top: targetY, left: x || 0, behavior: "auto" });
+            // Pas de log spam ici
+            if (
+              (Math.abs(window.scrollY - targetY) > 2 || (targetY !== 0 && window.scrollY === 0)) &&
+              tries < maxTries
+            ) {
+              tries++;
+              setTimeout(tryRestore, 50);
+            } else {
+              // Nettoie la position restaurée pour éviter de la rejouer sur un reload
+              sessionStorage.removeItem("scroll-restoration:home");
+            }
+          };
+          tryRestore();
         } catch (e) {
-          console.log("[ScrollRestoration] Failed to parse sessionStorage value", e);
+          // Optionnel : log minimal en cas d'erreur réelle
+          // console.log("[ScrollRestoration] Failed to parse sessionStorage value", e);
         }
-      } else {
-        console.log("[ScrollRestoration] No scroll position found on mount");
       }
     }, 0);
 
-    // Sauvegarde la position à chaque scroll (avec logs)
+    // Sauvegarde la position à chaque scroll (sans log flood)
     let lastScroll = window.scrollY;
     let lastSave = Date.now();
 
     const saveScroll = () => {
       const now = Date.now();
+      if (window.scrollY === 0 && sessionStorage.getItem("scroll-restoration:home") === null) {
+        return;
+      }
       if (Math.abs(window.scrollY - lastScroll) > 100 || now - lastSave > 2000) {
         lastScroll = window.scrollY;
         lastSave = now;
-        console.log("[ScrollRestoration] [Save] scrollY =", window.scrollY);
+        // Pas de log ici
       }
       sessionStorage.setItem("scroll-restoration:home", JSON.stringify({ y: window.scrollY, x: window.scrollX }));
     };
     window.addEventListener("scroll", saveScroll);
 
-    // Sauvegarde aussi à l'unmount (log final)
+    // Sauvegarde aussi à l'unmount (log final, sans spam)
     return () => {
-      sessionStorage.setItem("scroll-restoration:home", JSON.stringify({ y: window.scrollY, x: window.scrollX }));
-      console.log("[ScrollRestoration] [Save] (unmount) scrollY =", window.scrollY);
+      if (window.scrollY !== 0 || sessionStorage.getItem("scroll-restoration:home") !== null) {
+        sessionStorage.setItem("scroll-restoration:home", JSON.stringify({ y: window.scrollY, x: window.scrollX }));
+        // Pas de log ici
+      }
       window.removeEventListener("scroll", saveScroll);
     };
   }, []);
@@ -540,7 +565,7 @@ export default function Index() {
                       className="movie-card block group"
                       onClick={() => {
                         console.log("[ScrollRestoration] [Link] Save before navigation (ephemereFilms)", film.title, window.scrollY);
-                        save();
+                        saveScrollPosition();
                         trackFilmClick(film.title, index);
                       }}
                     >
@@ -601,7 +626,7 @@ export default function Index() {
                     className="movie-card block group"
                     onClick={() => {
                       console.log("[ScrollRestoration] [Link] Save before navigation (regularFilms)", film.title, window.scrollY);
-                      save();
+                      saveScrollPosition();
                       trackFilmClick(film.title, index);
                     }}
                   >
@@ -655,7 +680,7 @@ export default function Index() {
                   className="movie-card block group"
                   onClick={() => {
                     console.log("[ScrollRestoration] [Link] Save before navigation (filteredAndSortedFilms)", film.title, window.scrollY);
-                    save();
+                    saveScrollPosition();
                     trackFilmClick(film.title, index);
                   }}
                 >
