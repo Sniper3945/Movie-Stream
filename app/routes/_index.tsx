@@ -3,6 +3,8 @@ import { Link } from "react-router";
 import { useFilms } from "../contexts/FilmContext";
 import { trackFilmClick } from "../utils/analytics";
 import Fuse from "fuse.js";
+import { useScrollRestoration } from "../hooks/useScrollRestoration";
+
 export function meta() {
   return [
     { title: "MovieStream - Films en streaming" },
@@ -11,7 +13,7 @@ export function meta() {
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
     // Ajout d'un meta version pour forcer le cache à se rafraîchir
-    { name: "version", content: "2025-06-26-2" }
+    { name: "version", content: "2025-06-27-3" }
   ];
 }
 
@@ -177,31 +179,29 @@ export default function Index() {
     return option ? option.label : "Trier par";
   };
 
-  // Gestion du scroll : restauration/sauvegarde uniquement retour depuis watch
-  const lastRouteRef = useRef<string | null>(null);
+  // Utilise le hook pour la page d'accueil (clé unique)
+  const { save } = useScrollRestoration({ key: "home", enabled: true });
 
   useEffect(() => {
-    // Détecte si on vient de /watch/*
-    const referrer = document.referrer;
-    const isBackFromWatch =
-      referrer &&
-      (referrer.includes("/watch/") || referrer.includes("/watch"));
+    console.log("[ScrollRestoration] useEffect mount");
 
-    // Si on vient de watch, restore le scroll
-    if (isBackFromWatch) {
-      setTimeout(() => {
-        const scrollY = localStorage.getItem("home-scroll");
-        if (scrollY) {
-          window.scrollTo(0, parseInt(scrollY, 10));
-          console.log("[Scroll Restore] scrollY =", scrollY);
+    // Restaure la position de scroll si elle existe (SPA ou retour)
+    setTimeout(() => {
+      const sessionScroll = sessionStorage.getItem("scroll-restoration:home");
+      if (sessionScroll) {
+        try {
+          const { y } = JSON.parse(sessionScroll);
+          window.scrollTo({ top: y, behavior: "instant" });
+          console.log("[ScrollRestoration] Restored from sessionStorage to", y);
+        } catch (e) {
+          console.log("[ScrollRestoration] Failed to parse sessionStorage value", e);
         }
-      }, 0);
-    } else {
-      // Si reload ou accès direct, reset la variable
-      localStorage.removeItem("home-scroll");
-    }
+      } else {
+        console.log("[ScrollRestoration] No scroll position found on mount");
+      }
+    }, 0);
 
-    // Sauvegarde la position à chaque scroll (sans log flood)
+    // Sauvegarde la position à chaque scroll (avec logs)
     let lastScroll = window.scrollY;
     let lastSave = Date.now();
 
@@ -210,16 +210,16 @@ export default function Index() {
       if (Math.abs(window.scrollY - lastScroll) > 100 || now - lastSave > 2000) {
         lastScroll = window.scrollY;
         lastSave = now;
-        console.log("[Scroll Save] scrollY =", window.scrollY);
+        console.log("[ScrollRestoration] [Save] scrollY =", window.scrollY);
       }
-      localStorage.setItem("home-scroll", String(window.scrollY));
+      sessionStorage.setItem("scroll-restoration:home", JSON.stringify({ y: window.scrollY, x: window.scrollX }));
     };
     window.addEventListener("scroll", saveScroll);
 
     // Sauvegarde aussi à l'unmount (log final)
     return () => {
-      localStorage.setItem("home-scroll", String(window.scrollY));
-      console.log("[Scroll Save] scrollY =", window.scrollY);
+      sessionStorage.setItem("scroll-restoration:home", JSON.stringify({ y: window.scrollY, x: window.scrollX }));
+      console.log("[ScrollRestoration] [Save] (unmount) scrollY =", window.scrollY);
       window.removeEventListener("scroll", saveScroll);
     };
   }, []);
@@ -538,7 +538,11 @@ export default function Index() {
                       key={film.id}
                       to={`/watch/${film.id}`}
                       className="movie-card block group"
-                      onClick={() => trackFilmClick(film.title, index)}
+                      onClick={() => {
+                        console.log("[ScrollRestoration] [Link] Save before navigation (ephemereFilms)", film.title, window.scrollY);
+                        save();
+                        trackFilmClick(film.title, index);
+                      }}
                     >
                       <div className="relative">
                         <img 
@@ -595,7 +599,11 @@ export default function Index() {
                     key={film.id}
                     to={`/watch/${film.id}`}
                     className="movie-card block group"
-                    onClick={() => trackFilmClick(film.title, index)}
+                    onClick={() => {
+                      console.log("[ScrollRestoration] [Link] Save before navigation (regularFilms)", film.title, window.scrollY);
+                      save();
+                      trackFilmClick(film.title, index);
+                    }}
                   >
                     <div className="relative">
                       <img 
@@ -645,7 +653,11 @@ export default function Index() {
                   key={film.id}
                   to={`/watch/${film.id}`}
                   className="movie-card block group"
-                  onClick={() => trackFilmClick(film.title, index)}
+                  onClick={() => {
+                    console.log("[ScrollRestoration] [Link] Save before navigation (filteredAndSortedFilms)", film.title, window.scrollY);
+                    save();
+                    trackFilmClick(film.title, index);
+                  }}
                 >
                   <div className="relative">
                     <img 
