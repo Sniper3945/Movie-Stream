@@ -12,7 +12,7 @@ export function meta() {
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
     // Ajout d'un meta version pour forcer le cache à se rafraîchir
-    { name: "version", content: "2025-06-28-1" }
+    { name: "version", content: "2025-06-30-1" }
   ];
 }
 

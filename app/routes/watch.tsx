@@ -49,6 +49,25 @@ export default function Watch() {
         hls = new Hls();
         hls.loadSource(hlsUrl);
         hls.attachMedia(videoRef.current);
+        hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_, data) => {
+          // Supprime les anciens tracks
+          const video = videoRef.current;
+          if (!video) return;
+          // Retire les anciens tracks ajoutés dynamiquement
+          Array.from(video.querySelectorAll('track[data-hlsjs]')).forEach(t => t.remove());
+
+          data.subtitleTracks.forEach((track: any, i: number) => {
+            if (!track.url) return;
+            const trackEl = document.createElement('track');
+            trackEl.kind = 'subtitles';
+            trackEl.label = track.name || track.lang || `Sous-titres ${i+1}`;
+            trackEl.srclang = track.lang || `lang${i+1}`;
+            trackEl.src = track.url;
+            trackEl.default = i === 0;
+            trackEl.setAttribute('data-hlsjs', '1');
+            video.appendChild(trackEl);
+          });
+        });
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setIsVideoLoading(false);
         });
