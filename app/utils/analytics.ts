@@ -7,10 +7,16 @@ const initialize = () => {
   }
 };
 
-// Suivre les vues de pages
-const trackPageView = (path?: string) => {
+// Suivre les vues de pages avec un titre explicite
+const trackPageView = (path?: string, pageTitle?: string) => {
   const page = path || (typeof window !== 'undefined' ? window.location.pathname : '');
-  ReactGA.send({ hitType: "pageview", page });
+  
+  // Envoi de la page view avec titre personnalisé si fourni
+  ReactGA.send({
+    hitType: "pageview",
+    page,
+    title: pageTitle || page // Utilise le titre personnalisé ou le chemin comme fallback
+  });
 };
 
 // Suivre les clics sur les films

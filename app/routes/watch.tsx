@@ -28,7 +28,7 @@ export default function Watch() {
   // Initialiser Google Analytics et suivre la vue de page
   useEffect(() => {
     initialize();
-    trackPageView();
+    // On ne fait pas de trackPageView tout de suite car on n'a pas encore le titre du film
   }, []);
 
   useEffect(() => {
@@ -36,8 +36,10 @@ export default function Watch() {
       const film = films.find(f => f.id === id);
       if (film) {
         setCurrentFilm(film);
-        // Suivre la vue du film spécifique
+        // Suivre la vue du film avec son titre
         trackFilmView(film.title);
+        // Envoyer la page view avec un titre descriptif incluant le nom du film
+        trackPageView(`/watch/${id}`, `Film: ${film.title}`);
       } else {
         navigate('/');
       }

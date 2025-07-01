@@ -248,10 +248,10 @@ export default function Index() {
     };
   }, []);
 
-  // Initialiser GA et suivre la vue de page
+  // Initialiser GA et suivre la vue de page avec un titre explicite
   useEffect(() => {
     initialize();
-    trackPageView();
+    trackPageView('/', 'Accueil');
   }, []);
 
   // Force la mise à jour du Service Worker à chaque chargement
