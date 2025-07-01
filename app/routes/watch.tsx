@@ -194,33 +194,40 @@ export default function Watch() {
                 </button>
               </div>
             </div>
-          ) : currentFilm.ephemere && currentFilm.videoUrl ? (
-            <video
-              ref={videoRef}
-              className="w-full h-full"
-              controls
-              autoPlay
-              onLoadStart={() => setIsVideoLoading(true)}
-              onError={() => {
-                setVideoError(true);
-                setIsVideoLoading(false);
-              }}
-            />
           ) : (
-            <video
-              className="w-full h-full"
-              controls
-              autoPlay
-              onLoadStart={() => setIsVideoLoading(true)}
-              onCanPlay={() => setIsVideoLoading(false)}
-              onError={() => {
-                setVideoError(true);
-                setIsVideoLoading(false);
-              }}
-            >
-              <source src={currentFilm.videoUrl} type="video/mp4" />
-              Votre navigateur ne supporte pas la lecture vidéo.
-            </video>
+            // HLS (.m3u8) ou film éphémère
+            (currentFilm.ephemere && currentFilm.videoUrl && currentFilm.videoUrl.endsWith('.m3u8')) ? (
+              <video
+                ref={videoRef}
+                className="w-full h-full"
+                controls
+                autoPlay
+                onLoadStart={() => setIsVideoLoading(true)}
+                onError={() => {
+                  setVideoError(true);
+                  setIsVideoLoading(false);
+                }}
+                poster={currentFilm.cover.replace(/\.png$/, '.webp')}
+              />
+            ) : (
+              // Lien direct (mp4, 0x0.st, archive.org, etc)
+              <video
+                ref={videoRef}
+                className="w-full h-full"
+                controls
+                autoPlay
+                src={currentFilm.videoUrl}
+                onLoadStart={() => setIsVideoLoading(true)}
+                onCanPlay={() => setIsVideoLoading(false)}
+                onError={() => {
+                  setVideoError(true);
+                  setIsVideoLoading(false);
+                }}
+                poster={currentFilm.cover.replace(/\.png$/, '.webp')}
+              >
+                Votre navigateur ne supporte pas la lecture vidéo.
+              </video>
+            )
           )}
         </div>
 

@@ -11,8 +11,8 @@ export function meta() {
       name: "description", 
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
-    // Ajout d'un meta version pour forcer le cache à se rafraîchir
-    { name: "version", content: "2025-06-30-1" }
+    // Incrémente la version à chaque déploiement
+    { name: "version", content: "2025-07-01-2" }
   ];
 }
 
@@ -247,6 +247,20 @@ export default function Index() {
       }
       window.removeEventListener("scroll", saveScroll);
     };
+  }, []);
+
+  // Force la mise à jour du Service Worker à chaque chargement
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(reg => {
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          reg.update();
+        });
+      });
+    }
   }, []);
 
   if (loading) {
@@ -564,21 +578,16 @@ export default function Index() {
                       to={`/watch/${film.id}`}
                       className="movie-card block group"
                       onClick={() => {
-                        console.log("[ScrollRestoration] [Link] Save before navigation (ephemereFilms)", film.title, window.scrollY);
                         saveScrollPosition();
                         trackFilmClick(film.title, index);
                       }}
                     >
                       <div className="relative">
-                        <img 
-                          alt={`Affiche du film ${film.title}`} 
-                          className="w-full aspect-[2/3] object-cover rounded-lg" 
+                        <img
+                          alt={`Affiche du film ${film.title}`}
+                          className="w-full aspect-[2/3] object-cover rounded-lg"
                           src={film.cover}
                           loading="lazy"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/assets/placeholder.png";
-                          }}
                         />
                         {/* Badge éphémère */}
                         <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-10">
@@ -625,21 +634,16 @@ export default function Index() {
                     to={`/watch/${film.id}`}
                     className="movie-card block group"
                     onClick={() => {
-                      console.log("[ScrollRestoration] [Link] Save before navigation (regularFilms)", film.title, window.scrollY);
                       saveScrollPosition();
                       trackFilmClick(film.title, index);
                     }}
                   >
                     <div className="relative">
-                      <img 
-                        alt={`Affiche du film ${film.title}`} 
-                        className="w-full aspect-[2/3] object-cover rounded-lg" 
+                      <img
+                        alt={`Affiche du film ${film.title}`}
+                        className="w-full aspect-[2/3] object-cover rounded-lg"
                         src={film.cover}
                         loading="lazy"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "/assets/placeholder.png";
-                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
                         <div className="p-3 w-full">
@@ -679,21 +683,16 @@ export default function Index() {
                   to={`/watch/${film.id}`}
                   className="movie-card block group"
                   onClick={() => {
-                    console.log("[ScrollRestoration] [Link] Save before navigation (filteredAndSortedFilms)", film.title, window.scrollY);
                     saveScrollPosition();
                     trackFilmClick(film.title, index);
                   }}
                 >
                   <div className="relative">
-                    <img 
-                      alt={`Affiche du film ${film.title}`} 
-                      className="w-full aspect-[2/3] object-cover rounded-lg" 
+                    <img
+                      alt={`Affiche du film ${film.title}`}
+                      className="w-full aspect-[2/3] object-cover rounded-lg"
                       src={film.cover}
                       loading="lazy"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = "/assets/placeholder.png";
-                      }}
                     />
                     {/* Badge éphémère si besoin */}
                     {film.ephemere && (

@@ -144,7 +144,7 @@ export default function AdminAjout() {
       if (result.success) {
         setMessage(`✅ ${result.message}`);
         if (result.coverInstruction) {
-          setMessage(prev => prev + `\n\n📁 ${result.coverInstruction}`);
+          setMessage(prev => prev + `\n\n📁 ${result.coverInstruction.replace(/\.png/, '.webp')}`);
         }
         
         // Reset form
@@ -561,7 +561,8 @@ export default function AdminAjout() {
                       <p className="font-medium">Gestion des covers</p>
                       <p className="text-sm text-gray-400">
                         Les covers sont gérées dans /public/assets/. Après ajout du film, 
-                        placez votre image cover dans le dossier assets avec le nom indiqué dans la confirmation.
+                        placez votre image cover dans le dossier assets avec le nom indiqué dans la confirmation.<br />
+                        <span className="text-yellow-400">Format recommandé : <b>.webp</b> (ex : film13.webp)</span>
                       </p>
                     </div>
                   </div>

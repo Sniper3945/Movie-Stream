@@ -51,11 +51,14 @@ exports.handler = async (event, context) => {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json",
+    "Cache-Control": "no-store", // Empêche le cache navigateur/proxy
   };
 
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers };
   }
+
+  console.log("➡️ [get-films] API called"); // Ajoute ce log
 
   try {
     await connectDB();
@@ -74,7 +77,7 @@ exports.handler = async (event, context) => {
         videoUrl: film.videoUrl,
         director: film.director || "",
         ephemere: film.ephemere || false, // Expose le champ éphémère côté client
-        cover: `/assets/film${index + 1}.png`,
+        cover: `/assets/film${index + 1}.webp`,
       }));
     } catch (dbError) {
       console.error("❌ Error fetching films from MongoDB:", dbError.message);
