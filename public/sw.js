@@ -1,6 +1,6 @@
 // Service Worker pour MovieStream : gestion du cache versionné
 
-const CACHE_VERSION = "v2025-07-02-1"; // Change à chaque déploiement
+const CACHE_VERSION = "v2025-07-02-2"; // Change à chaque déploiement
 const CACHE_NAME = `moviestream-cache-${CACHE_VERSION}`;
 const ASSETS = [
   // Ajoute ici les assets critiques à pré-cacher si besoin

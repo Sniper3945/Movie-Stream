@@ -12,7 +12,7 @@ export function meta() {
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
     // Incrémente la version à chaque déploiement
-    { name: "version", content: "2025-07-02-1" }
+    { name: "version", content: "2025-07-02-2" }
   ];
 }
 
