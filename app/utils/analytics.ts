@@ -1,50 +1,54 @@
-// Déclaration pour gtag
-declare global {
-  interface Window {
-    gtag: (...args: any[]) => void;
-    dataLayer: any[];
-  }
-}
+import ReactGA from 'react-ga4';
 
-export const GA_TRACKING_ID = 'G-7Q0QCDDQ0W';
-
-// Fonction pour tracker les clics sur les films
-export const trackFilmClick = (filmTitle: string, position: number) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'film_click', {
-      film_title: filmTitle,
-      position: position,
-      event_category: 'engagement',
-    });
+// Initialiser GA4 avec l'ID de mesure
+const initialize = () => {
+  if (typeof window !== 'undefined') {
+    ReactGA.initialize('G-7QQDCDDQQW');
   }
+};
+
+// Suivre les vues de pages
+const trackPageView = (path?: string) => {
+  const page = path || (typeof window !== 'undefined' ? window.location.pathname : '');
+  ReactGA.send({ hitType: "pageview", page });
+};
+
+// Suivre les clics sur les films
+const trackFilmClick = (filmTitle: string, index: number) => {
+  ReactGA.event({
+    category: 'Film',
+    action: 'Click',
+    label: filmTitle,
+    value: index
+  });
 };
 
 // Fonction pour tracker les vues de films
 export const trackFilmView = (filmTitle: string) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'film_view', {
-      film_title: filmTitle,
-      event_category: 'engagement',
-    });
-  }
+  ReactGA.event({
+    category: 'engagement',
+    action: 'film_view',
+    label: filmTitle
+  });
 };
 
 // Fonction pour tracker la lecture vidéo
 export const trackVideoPlay = (filmTitle: string) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'video_play', {
-      film_title: filmTitle,
-      event_category: 'video',
-    });
-  }
+  ReactGA.event({
+    category: 'video',
+    action: 'video_play',
+    label: filmTitle
+  });
 };
 
 // Fonction pour tracker la fin de la vidéo
 export const trackVideoComplete = (filmTitle: string) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', 'video_complete', {
-      film_title: filmTitle,
-      event_category: 'video',
-    });
-  }
+  ReactGA.event({
+    category: 'video',
+    action: 'video_complete',
+    label: filmTitle
+  });
 };
+
+// Exporter les fonctions utiles
+export { initialize, trackPageView, trackFilmClick };

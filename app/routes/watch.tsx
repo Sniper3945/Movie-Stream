@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useFilms } from '../contexts/FilmContext';
 import Hls from "hls.js";
+import { initialize, trackPageView, trackFilmView } from '../utils/analytics';
 
 // Fonction pour obtenir la couleur d'un genre - couleur grise uniforme
 const getGenreColor = (genreName: string) => {
@@ -24,11 +25,19 @@ export default function Watch() {
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Initialiser Google Analytics et suivre la vue de page
+  useEffect(() => {
+    initialize();
+    trackPageView();
+  }, []);
+
   useEffect(() => {
     if (films.length > 0 && id) {
       const film = films.find(f => f.id === id);
       if (film) {
         setCurrentFilm(film);
+        // Suivre la vue du film spécifique
+        trackFilmView(film.title);
       } else {
         navigate('/');
       }

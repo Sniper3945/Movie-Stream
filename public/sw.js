@@ -1,6 +1,6 @@
 // Service Worker pour MovieStream : gestion du cache versionné
 
-const CACHE_VERSION = "v2025-06-30-1"; // Change à chaque déploiement
+const CACHE_VERSION = "v2025-07-02-1"; // Change à chaque déploiement
 const CACHE_NAME = `moviestream-cache-${CACHE_VERSION}`;
 const ASSETS = [
   // Ajoute ici les assets critiques à pré-cacher si besoin
@@ -37,6 +37,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
+  // Ignore les requêtes non http(s)
+  if (!request.url.startsWith("http")) {
+    return;
+  }
+
   // Toujours network first pour les navigations (HTML)
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(() => caches.match(request)));
@@ -48,11 +53,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clone et met en cache la réponse
           const respClone = response.clone();
-          caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.put(request, respClone));
+          // Ne cache que les requêtes http(s)
+          if (request.url.startsWith("http")) {
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(request, respClone));
+          }
           return response;
         })
         .catch(() => caches.match(request))

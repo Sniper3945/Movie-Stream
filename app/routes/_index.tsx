@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { useFilms } from "../contexts/FilmContext";
-import { trackFilmClick } from "../utils/analytics";
+import { trackFilmClick, initialize, trackPageView } from "../utils/analytics";
 import Fuse from "fuse.js";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
 export function meta() {
@@ -12,7 +12,7 @@ export function meta() {
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
     // Incrémente la version à chaque déploiement
-    { name: "version", content: "2025-07-01-2" }
+    { name: "version", content: "2025-07-02-1" }
   ];
 }
 
@@ -28,7 +28,6 @@ export default function Index() {
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [sortBy, setSortBy] = useState("default");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [filterGenre, setFilterGenre] = useState("");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Options de tri
@@ -247,6 +246,12 @@ export default function Index() {
       }
       window.removeEventListener("scroll", saveScroll);
     };
+  }, []);
+
+  // Initialiser GA et suivre la vue de page
+  useEffect(() => {
+    initialize();
+    trackPageView();
   }, []);
 
   // Force la mise à jour du Service Worker à chaque chargement
