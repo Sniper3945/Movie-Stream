@@ -4,6 +4,9 @@ import { useFilms } from "../contexts/FilmContext";
 import { trackFilmClick, initialize, trackPageView } from "../utils/analytics";
 import Fuse from "fuse.js";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
+import { motion, AnimatePresence } from "framer-motion";
+import { SparklesIcon, type SparklesIconHandle } from "../components/SparklesIcon";
+
 export function meta() {
   return [
     { title: "MovieStream - Films en streaming" },
@@ -20,7 +23,318 @@ export function meta() {
 const getGenreColor = (genreName: string) => {
   return 'bg-gray-600'; // Couleur grise pour s'harmoniser avec le thème
 };
-// const { save } = useScrollRestoration({ key: "home", debug: true });
+
+// Composant pour la section "Idée de film"
+const FilmIdeaSection = ({ onClose }: { onClose?: () => void }) => {
+  const sparkleRef = useRef<SparklesIconHandle>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    director: ''
+  });
+  const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<any>(null);
+
+  // Fonction de nettoyage des caractères dangereux (sans supprimer les espaces)
+  const sanitizeInput = (input: string): string => {
+    return input
+      .replace(/[<>'"&]/g, "")
+      .replace(/javascript:/gi, "")
+      .replace(/on\w+=/gi, "")
+      .trim()
+      .substring(0, 100);
+  };
+
+  const searchTMDB = async () => {
+    if (!formData.title.trim()) {
+      setMessage('Veuillez entrer un titre de film');
+      return;
+    }
+
+    setIsSearching(true);
+    setMessage('');
+    setSelectedMovie(null);
+    
+    try {
+      const params = new URLSearchParams({
+        title: formData.title,
+        ...(formData.director && { director: formData.director })
+      });
+
+      const response = await fetch(`/.netlify/functions/search-tmdb?${params}`);
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        setMovieSearchResults(data.results);
+        setShowResults(true);
+      } else {
+        setMessage('Aucun film trouvé. Essayez avec un autre titre.');
+        setMovieSearchResults([]);
+        setShowResults(false);
+      }
+    } catch (error) {
+      setMessage('Erreur lors de la recherche');
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const selectMovie = (movie: any) => {
+    setSelectedMovie(movie);
+    setFormData({
+      title: movie.title,
+      director: movie.director || ''
+    });
+    setShowResults(false);
+    setMessage('');
+  };
+
+  const submitFilmIdea = async () => {
+    setIsSubmitting(true);
+    setMessage('');
+
+    try {
+      const cleanTitle = sanitizeInput(formData.title);
+      const cleanDirector = sanitizeInput(formData.director);
+
+      if (!cleanTitle) {
+        setMessage('Le titre du film est requis');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const ideaData = selectedMovie ? {
+        title: selectedMovie.title,
+        director: selectedMovie.director,
+        year: selectedMovie.year,
+        overview: selectedMovie.overview,
+        tmdbId: selectedMovie.id
+      } : {
+        title: cleanTitle,
+        director: cleanDirector,
+        year: null,
+        overview: '',
+        tmdbId: null
+      };
+
+      const response = await fetch('/.netlify/functions/submit-film-idea', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(ideaData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setMessage(result.message);
+        // Réinitialiser le formulaire
+        setFormData({ title: '', director: '' });
+        setMovieSearchResults([]);
+        setShowResults(false);
+        setSelectedMovie(null);
+      } else {
+        setMessage(result.error || 'Erreur lors de l\'envoi');
+      }
+    } catch (error) {
+      setMessage('Erreur lors de l\'envoi de votre suggestion');
+      console.error('Submit error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (field: 'title' | 'director', value: string) => {
+    // Ne pas supprimer les espaces lors de la saisie
+    const cleanValue = value
+      .replace(/[<>'"&]/g, "")
+      .replace(/javascript:/gi, "")
+      .replace(/on\w+=/gi, "")
+      .substring(0, 100);
+    
+    setFormData(prev => ({ ...prev, [field]: cleanValue }));
+    setMessage('');
+    setSelectedMovie(null);
+    if (showResults) {
+      setShowResults(false);
+      setMovieSearchResults([]);
+    }
+  };
+
+  useEffect(() => {
+    // Démarrer l'animation de l'icône à l'ouverture du popup
+    sparkleRef.current?.startAnimation();
+    
+    return () => {
+      sparkleRef.current?.stopAnimation();
+    };
+  }, []);
+
+  return (
+    <div className="bg-gray-900 rounded-lg p-6 border border-gray-700 w-full max-w-2xl mx-auto max-h-[80vh] overflow-y-auto custom-scrollbar">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-semibold flex items-center">
+          <SparklesIcon 
+            ref={sparkleRef}
+            size={28} 
+            className="mr-3 text-blue-400" 
+          />
+          Idée de film 
+        </h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white"
+            aria-label="Fermer"
+          >
+            <span className="material-icons text-xl">close</span>
+          </button>
+        )}
+      </div>
+      
+      <p className="text-gray-300 mb-6 text-sm">
+        Vous avez une idée de film à ajouter ? Recherchez-le et proposez-le nous !
+      </p>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Nom du film <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              placeholder="Ex: Le Parrain"
+              className="swiss-input w-full p-3 rounded-lg text-sm"
+              maxLength={100}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Réalisateur (optionnel)
+            </label>
+            <input
+              type="text"
+              value={formData.director}
+              onChange={(e) => handleInputChange('director', e.target.value)}
+              placeholder="Ex: Francis Ford Coppola"
+              className="swiss-input w-full p-3 rounded-lg text-sm"
+              maxLength={100}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={searchTMDB}
+            disabled={isSearching || !formData.title.trim()}
+            className="flex-1 bg-blue-800 hover:bg-blue-900 text-white p-3 rounded-lg font-medium disabled:opacity-50 flex items-center justify-center transition-colors"
+          >
+            {isSearching ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Recherche...
+              </>
+            ) : (
+              <>
+                <span className="material-icons text-sm mr-2">search</span>
+                Rechercher
+              </>
+            )}
+          </button>
+          
+          {selectedMovie && (
+            <button
+              onClick={submitFilmIdea}
+              disabled={isSubmitting || !formData.title.trim()}
+              className="flex-1 swiss-button p-3 rounded-lg font-medium disabled:opacity-50 flex items-center justify-center transition-colors"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Envoi...
+                </>
+              ) : (
+                <>
+                  <span className="material-icons text-sm mr-2">send</span>
+                  Envoyer
+                </>
+              )}
+            </button>
+          )}
+        </div>
+
+        {showResults && movieSearchResults.length > 0 && (
+          <div className="mt-4 space-y-3">
+            <h4 className="font-medium text-gray-300">Sélectionnez un film :</h4>
+            <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+              {movieSearchResults.slice(0, 3).map((movie: any, index) => {
+                const isSelected = selectedMovie?.id === movie.id;
+                return (
+                  <div 
+                    key={index} 
+                    onClick={() => selectMovie(movie)}
+                    className={`p-4 rounded-lg border cursor-pointer transition-all duration-200 group ${
+                      isSelected 
+                        ? 'border-blue-400 bg-blue-900 bg-opacity-20 ring-2 ring-blue-400 ring-opacity-50' 
+                        : 'border-gray-600 bg-gray-800 hover:border-blue-500 hover:bg-gray-750'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1 min-w-0 pr-4">
+                        <h5 className={`font-medium text-base transition-colors ${
+                          isSelected ? 'text-blue-300' : 'text-white group-hover:text-blue-300'
+                        }`}>
+                          {movie.title}
+                        </h5>
+                        <p className="text-xs text-gray-400 mt-2">
+                          {movie.year} • {movie.director} • {movie.genres.join(', ')}
+                        </p>
+                        <p className="text-sm md:text-sm text-xs text-gray-300 mt-2 line-clamp-3">
+                          {movie.overview?.substring(0, 200)}...
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 flex items-center justify-center h-full">
+                        <label className="custom-radio-label">
+                          <input
+                            type="radio"
+                            name="movie-selection"
+                            checked={isSelected}
+                            onChange={() => selectMovie(movie)}
+                            className="custom-radio-input"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {message && (
+          <div className={`p-3 rounded-lg text-sm ${
+            message.includes('Merci') || message.includes('déjà dans notre catalogue') || message.includes('suggérée')
+              ? 'bg-blue-900 text-blue-300 border border-blue-700' 
+              : 'bg-red-900 text-red-400 border border-red-700'
+          }`}>
+            {message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function Index() {
   const { films, loading, error } = useFilms();
   const [searchQuery, setSearchQuery] = useState("");
@@ -29,6 +343,7 @@ export default function Index() {
   const [sortBy, setSortBy] = useState("default");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showFilmIdeaPopup, setShowFilmIdeaPopup] = useState(false);
 
   // Options de tri
   const sortOptions = [
@@ -768,6 +1083,47 @@ export default function Index() {
           </div>
         </div>
       </footer>
+
+      {/* Bouton flottant pour idée de film */}
+      <motion.button
+        onClick={() => setShowFilmIdeaPopup(true)}
+        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-40 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 group"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <SparklesIcon 
+          size={20} 
+          className="text-white group-hover:animate-pulse md:!w-6 md:!h-6 md:translate-y-0.5" 
+        />
+      </motion.button>
+
+      {/* Popup pour idée de film */}
+      <AnimatePresence>
+        {showFilmIdeaPopup && (
+          <>
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFilmIdeaPopup(false)}
+              className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4"
+            >
+              {/* Popup content */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ duration: 0.2 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full"
+              >
+                <FilmIdeaSection onClose={() => setShowFilmIdeaPopup(false)} />
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

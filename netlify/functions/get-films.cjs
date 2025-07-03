@@ -7,7 +7,7 @@ if (!MONGODB_URI) {
   console.error("❌ MONGODB_URI_APP not found in environment variables");
 }
 
-// Film Schema
+// Film Schema - pas de changement nécessaire
 const filmSchema = new mongoose.Schema({
   title: { type: String, required: true },
   duration: { type: String, required: true },
@@ -17,7 +17,8 @@ const filmSchema = new mongoose.Schema({
   videoUrl: { type: String, required: true },
   director: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
-  ephemere: { type: Boolean, default: false }, // Ajout pour exposer le champ éphémère
+  ephemere: { type: Boolean, default: false },
+  // PAS de champ "asked" ici - il est dans FilmIdea
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);

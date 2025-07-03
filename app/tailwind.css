@@ -30,10 +30,16 @@
 .swiss-button {
   background-color: #1DA1F2;
   color: #FFFFFF;
+  @apply transition-all duration-200;
 }
 
 .swiss-button:hover {
   background-color: #0c85d0;
+  @apply shadow-lg;
+}
+
+.swiss-button:disabled {
+  @apply opacity-50 cursor-not-allowed;
 }
 
 /* Movie card styles from tst.html */
@@ -122,6 +128,35 @@ body {
 
 .sort-dropdown::-webkit-scrollbar-thumb:hover {
   background: #6B7280;
+}
+
+/* Custom scrollbar for film ideas dropdown */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #4A5568 #2D3748;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #2D3748;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4A5568;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #718096;
+}
+
+/* Hide scrollbar buttons */
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none;
 }
 
 /* Mobile menu animations */
@@ -266,4 +301,210 @@ body {
   section {
     margin-bottom: 2rem;
   }
+}
+
+/* Hover state for movie selection cards */
+.bg-gray-750 {
+  background-color: #374151;
+}
+
+/* Radio button custom styling - theme compatible and larger */
+input[type="radio"] {
+  @apply w-5 h-5 text-blue-600 bg-gray-800 border-gray-500 focus:ring-blue-500 focus:ring-2;
+}
+
+/* Custom radio button for theme consistency */
+.theme-radio {
+  @apply w-6 h-6 text-blue-500 bg-gray-800 border-2 border-gray-500 focus:ring-blue-400 focus:ring-2 cursor-pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-radio:checked {
+  @apply bg-blue-600 border-blue-400;
+}
+
+.theme-radio:hover {
+  @apply border-blue-400 bg-gray-700;
+}
+
+.theme-radio:checked:hover {
+  @apply bg-blue-500 border-blue-300;
+}
+
+/* Film idea section improvements */
+.film-idea-card {
+  @apply bg-gray-800 border border-gray-600 rounded-lg p-3 cursor-pointer transition-all duration-200;
+}
+
+.film-idea-card:hover {
+  @apply border-blue-500 bg-gray-750;
+}
+
+.film-idea-card.selected {
+  @apply border-blue-400 bg-blue-900 bg-opacity-20 ring-2 ring-blue-400 ring-opacity-50;
+}
+
+/* Success message styling in theme colors */
+.success-message {
+  @apply bg-blue-900 text-blue-300 border border-blue-700;
+}
+
+/* Custom radio button design adapted to site theme */
+.custom-radio-label {
+  @apply flex items-center justify-center relative cursor-pointer;
+  width: 50px;
+  height: 50px;
+}
+
+.custom-radio-label::before {
+  position: absolute;
+  content: "";
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 45px;
+  height: 45px;
+  z-index: -1;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-color: transparent;
+}
+
+.custom-radio-label:hover::before {
+  transition: all 0.2s ease;
+  background-color: #374151;
+  border-color: #60A5FA;
+}
+
+.custom-radio-label:has(.custom-radio-input:checked)::before {
+  background-color: #1E3A8A;
+  border-color: #60A5FA;
+  height: 50px;
+  width: 50px;
+}
+
+.custom-radio-input {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #374151;
+  border: 2px solid #6B7280;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+
+.custom-radio-input:checked {
+  background-color: #3B82F6;
+  border-color: #60A5FA;
+  animation: pulse-blue 0.7s forwards;
+}
+
+.custom-radio-input::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  background-color: #FFFFFF;
+  transform: scale(0);
+}
+
+.custom-radio-input:checked::before {
+  transform: scale(1);
+}
+
+.custom-radio-input:hover {
+  border-color: #60A5FA;
+  background-color: #4B5563;
+}
+
+@keyframes pulse-blue {
+  0% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(96, 165, 250, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+  }
+}
+
+/* Mobile optimizations for film description */
+@media (max-width: 768px) {
+  .custom-radio-label {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .custom-radio-label::before {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .custom-radio-input {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .custom-radio-input::before {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Floating button animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Responsive floating button */
+@media (max-width: 768px) {
+  .floating-film-idea-btn {
+    width: 56px;
+    height: 56px;
+    bottom: 24px;
+    right: 24px;
+  }
+}
+
+/* Fix icon centering in floating button */
+.floating-button-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.floating-button-icon svg {
+  flex-shrink: 0;
+}
+
+/* Popup scroll improvements */
+.popup-content {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Enhanced backdrop blur */
+.backdrop-blur-strong {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
