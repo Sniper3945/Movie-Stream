@@ -10,8 +10,10 @@ const getGenreColor = (genreName: string) => {
 };
 
 export function meta({ params }: { params: { id: string } }) {
+  // Note: Cette fonction est appelée côté serveur, on ne peut pas accéder aux films ici
+  // On utilisera un titre générique et on mettra à jour dynamiquement côté client
   return [
-    { title: `Film ${params.id} - MovieStream` },
+    { title: `Film - MovieStream` },
     { name: "description", content: "Regarder ce film en streaming sur MovieStream" },
   ];
 }
@@ -36,6 +38,16 @@ export default function Watch() {
       const film = films.find(f => f.id === id);
       if (film) {
         setCurrentFilm(film);
+        
+        // Mettre à jour le titre de la page dynamiquement
+        document.title = `${film.title} - MovieStream`;
+        
+        // Mettre à jour la description de la page
+        const metaDescription = document.querySelector('meta[name="description"]');
+        if (metaDescription) {
+          metaDescription.setAttribute('content', `Regarder ${film.title} (${film.year}) en streaming gratuit sur MovieStream. ${film.description?.substring(0, 100)}...`);
+        }
+        
         // Suivre la vue du film avec son titre
         trackFilmView(film.title);
         // Envoyer la page view avec un titre descriptif incluant le nom du film

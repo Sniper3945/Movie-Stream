@@ -1,6 +1,6 @@
 // Service Worker pour MovieStream : gestion du cache versionné
 
-const CACHE_VERSION = "v2025-07-02-2"; // Change à chaque déploiement
+const CACHE_VERSION = "v2025-07-07-2"; // Incrémenter à chaque déploiement avec nouvelles images
 const CACHE_NAME = `moviestream-cache-${CACHE_VERSION}`;
 const ASSETS = [
   // Ajoute ici les assets critiques à pré-cacher si besoin
@@ -48,6 +48,28 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Cache-busting pour les nouvelles images d'assets
+  if (request.method === "GET" && request.url.includes("/assets/film")) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Si l'image est trouvée, la cacher
+          if (response.ok) {
+            const respClone = response.clone();
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(request, respClone));
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback sur le cache si network fail
+          return caches.match(request);
+        })
+    );
+    return;
+  }
+
   // Network first pour tout sauf la page d'accueil "/"
   if (request.method === "GET" && !request.url.endsWith("/")) {
     event.respondWith(
@@ -67,9 +89,11 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Permet le skipWaiting via message
+// Permet le skipWaiting via message - FIX des erreurs asynchrones
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    // Répondre pour éviter les erreurs de message channel
+    event.ports[0]?.postMessage({ success: true });
   }
 });

@@ -14,14 +14,58 @@ export function meta() {
       name: "description", 
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
-    // Incrémente la version à chaque déploiement
-    { name: "version", content: "2025-07-02-2" }
+    // Incrémente la version à chaque déploiement - IMPORTANT POUR CACHE-BUSTING
+    { name: "version", content: "2025-07-07-2" }
   ];
 }
 
 // Fonction pour obtenir la couleur d'un genre - couleur grise uniforme
 const getGenreColor = (genreName: string) => {
   return 'bg-gray-600'; // Couleur grise pour s'harmoniser avec le thème
+};
+
+// Composant pour gérer les images avec placeholder
+const FilmImage = ({ src, alt, className }: { src: string; alt: string; className: string }) => {
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+    setIsLoading(false);
+  };
+
+  if (imageError) {
+    return (
+      <div className={`${className} bg-gray-800 flex items-center justify-center border border-gray-600`}>
+        <div className="text-center text-gray-400">
+          <span className="material-icons text-4xl mb-2 block">movie</span>
+          <p className="text-xs">Image non disponible</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      {isLoading && (
+        <div className={`${className} bg-gray-800 flex items-center justify-center border border-gray-600 absolute inset-0`}>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        className={className}
+        onLoad={handleImageLoad}
+        onError={handleImageError}
+        loading="lazy"
+      />
+    </div>
+  );
 };
 
 // Composant pour la section "Idée de film"
@@ -575,7 +619,14 @@ export default function Index() {
       navigator.serviceWorker.getRegistrations().then(registrations => {
         registrations.forEach(reg => {
           if (reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            // FIX: Utiliser MessageChannel pour éviter les erreurs
+            const channel = new MessageChannel();
+            channel.port1.onmessage = (event) => {
+              if (event.data.success) {
+                window.location.reload();
+              }
+            };
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' }, [channel.port2]);
           }
           reg.update();
         });
@@ -903,11 +954,10 @@ export default function Index() {
                       }}
                     >
                       <div className="relative">
-                        <img
+                        <FilmImage
+                          src={film.cover}
                           alt={`Affiche du film ${film.title}`}
                           className="w-full aspect-[2/3] object-cover rounded-lg"
-                          src={film.cover}
-                          loading="lazy"
                         />
                         {/* Badge éphémère */}
                         <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-10">
@@ -959,11 +1009,10 @@ export default function Index() {
                     }}
                   >
                     <div className="relative">
-                      <img
+                      <FilmImage
+                        src={film.cover}
                         alt={`Affiche du film ${film.title}`}
                         className="w-full aspect-[2/3] object-cover rounded-lg"
-                        src={film.cover}
-                        loading="lazy"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
                         <div className="p-3 w-full">
@@ -1008,11 +1057,10 @@ export default function Index() {
                   }}
                 >
                   <div className="relative">
-                    <img
+                    <FilmImage
+                      src={film.cover}
                       alt={`Affiche du film ${film.title}`}
                       className="w-full aspect-[2/3] object-cover rounded-lg"
-                      src={film.cover}
-                      loading="lazy"
                     />
                     {/* Badge éphémère si besoin */}
                     {film.ephemere && (
@@ -1073,12 +1121,6 @@ export default function Index() {
       <footer className="bg-[#0D0D0D] border-t border-gray-700 mt-auto">
         <div className="container mx-auto px-4 md:px-8 py-8">
           <div className="flex justify-center items-center text-sm text-gray-400">
-          {/* <div className="flex flex-col md:flex-row justify-between items-center text-sm text-gray-400"> */}
-            {/* <div className="flex space-x-6 mb-4 md:mb-0">
-              <a className="hover:text-white" href="#">À propos</a>
-              <a className="hover:text-white" href="#">Contact</a>
-              <a className="hover:text-white" href="#">Mentions légales</a>
-            </div> */}
             <p>© 2025 MovieStream. Tous droits réservés.</p>
           </div>
         </div>
