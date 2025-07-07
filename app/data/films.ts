@@ -18,7 +18,7 @@ export const films: Film[] = [
   {
     id: "film1",
     title: "Gainsbourg vie héroïque",
-    cover: "/assets/film1.png",
+    cover: "/assets/film1.webp",
     duration: "2h 08min",
     description: "Biopic musical de Joann Sfar sur la vie tumultueuse de Serge Gainsbourg, de ses débuts jusqu'à sa renommée internationale. Un portrait intime et surréaliste du provocateur français.",
     year: 2010,
@@ -29,7 +29,7 @@ export const films: Film[] = [
   {
     id: "film2",
     title: "L'affaire Thomas Crown",
-    cover: "/assets/film2.png",
+    cover: "/assets/film2.webp",
     duration: "1h 42min",
     description: "Steve McQueen incarne un millionnaire qui braque des banques par ennui. Faye Dunaway est l'enquêtrice chargée de l'arrêter dans ce thriller élégant des années 60.",
     year: 1968,
@@ -40,7 +40,7 @@ export const films: Film[] = [
   {
     id: "film3",
     title: "La Piscine",
-    cover: "/assets/film3.png",
+    cover: "/assets/film3.webp",
     duration: "2h 02min",
     description: "Alain Delon et Romy Schneider dans un drame psychologique tendu. Vacances d'été qui tournent au cauchemar quand des amis perturbent l'harmonie d'un couple.",
     year: 1969,
@@ -51,7 +51,7 @@ export const films: Film[] = [
   {
     id: "film4",
     title: "Un Homme et Une Femme",
-    cover: "/assets/film4.png",
+    cover: "/assets/film4.webp",
     duration: "1h 38min",
     description: "Chef-d'œuvre romantique de Claude Lelouch. L'histoire d'amour entre un pilote automobile et une script-girl, tous deux veufs, qui se rencontrent à Deauville.",
     year: 1966,
@@ -62,7 +62,7 @@ export const films: Film[] = [
   {
     id: "film5",
     title: "Le Samouraï",
-    cover: "/assets/film5.png",
+    cover: "/assets/film5.webp",
     duration: "1h 45min",
     description: "Alain Delon incarne Jef Costello, tueur à gages solitaire et méticuleux. Chef-d'œuvre de Jean-Pierre Melville qui influence encore le cinéma moderne.",
     year: 1967,
@@ -73,7 +73,7 @@ export const films: Film[] = [
   {
     id: "film6",
     title: "Le Clan des Siciliens",
-    cover: "/assets/film6.png",
+    cover: "/assets/film6.webp",
     duration: "2h 04min",
     description: "Alain Delon, Jean Gabin et Lino Ventura dans un polar haletant. L'histoire d'un braquage d'bijouterie orchestré par la mafia sicilienne à Paris.",
     year: 1969,
@@ -84,7 +84,7 @@ export const films: Film[] = [
   {
     id: "film7",
     title: "Orange mécanique vf",
-    cover: "/assets/film7.png",
+    cover: "/assets/film7.webp",
     duration: "2h 16min",
     description: "Dystopie culte de Stanley Kubrick. Dans un futur proche, Alex DeLarge et ses droogs sèment la terreur avant qu'Alex ne subisse un traitement controversé.",
     year: 1971,
@@ -95,7 +95,7 @@ export const films: Film[] = [
   {
     id: "film8",
     title: "Les Dents de la mer vf",
-    cover: "/assets/film8.png",
+    cover: "/assets/film8.webp",
     duration: "2h 04min",
     description: "Premier blockbuster de Steven Spielberg. Un requin géant terrorise une station balnéaire américaine. Suspense aquatique qui a marqué l'histoire du cinéma.",
     year: 1975,
@@ -106,7 +106,7 @@ export const films: Film[] = [
   {
     id: "film9",
     title: "Taxi Driver vf",
-    cover: "/assets/film9.png",
+    cover: "/assets/film9.webp",
     duration: "1h 54min",
     description: "Robert De Niro incarne Travis Bickle, chauffeur de taxi new-yorkais sombrant dans la paranoïa. Chef-d'œuvre sombre de Martin Scorsese sur l'aliénation urbaine.",
     year: 1976,
@@ -117,7 +117,7 @@ export const films: Film[] = [
   {
     id: "film10",
     title: "The Usual Suspects vf",
-    cover: "/assets/film10.png",
+    cover: "/assets/film10.webp",
     duration: "1h 40min",
     description: "Thriller labyrinthique de Bryan Singer. Cinq criminels se retrouvent dans un coup monté par le mystérieux Keyser Söze. Twist final légendaire garanti.",
     year: 1995,
@@ -128,7 +128,7 @@ export const films: Film[] = [
   {
     id: "film11",
     title: "Apocalypse Now",
-    cover: "/assets/film11.png",
+    cover: "/assets/film11.webp",
     duration: "3h 02min",
     description: "Chef-d'œuvre de Francis Ford Coppola sur la guerre du Vietnam.",
     year: 1979,
@@ -139,7 +139,7 @@ export const films: Film[] = [
   {
     id: "film12",
     title: "8½",
-    cover: "/assets/film12.png",
+    cover: "/assets/film12.webp",
     duration: "2h 18min",
     description: "Fellini explore la crise créative d'un réalisateur.",
     year: 1963,

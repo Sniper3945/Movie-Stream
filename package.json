@@ -12,7 +12,10 @@
     "start": "react-router-serve ./build/server/index.js",
     "typecheck": "tsc",
     "version:generate": "node scripts/generate-version.js",
-    "cache:clear": "node scripts/clear-cache.js"
+    "cache:clear": "node scripts/clear-cache.js",
+    "rename-images": "node scripts/rename-images.js",
+    "update-films-data": "node scripts/update-films-data.js",
+    "setup-images": "npm run rename-images && npm run update-films-data"
   },
   "dependencies": {
     "@netlify/functions": "^4.1.8",
