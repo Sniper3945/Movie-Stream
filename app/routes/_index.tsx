@@ -6,6 +6,7 @@ import Fuse from "fuse.js";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
 import { motion, AnimatePresence } from "framer-motion";
 import { SparklesIcon, type SparklesIconHandle } from "../components/SparklesIcon";
+import { VERSION_INFO } from "../utils/version";
 
 export function meta() {
   return [
@@ -14,8 +15,9 @@ export function meta() {
       name: "description", 
       content: "Découvrez une sélection de films classiques et modernes en streaming gratuit." 
     },
-    // Incrémente la version à chaque déploiement - IMPORTANT POUR CACHE-BUSTING
-    { name: "version", content: "2025-07-07-2" }
+    // Version auto-générée - plus besoin de modification manuelle
+    { name: "version", content: VERSION_INFO.version },
+    { name: "cache-buster", content: VERSION_INFO.cacheBuster }
   ];
 }
 
@@ -613,26 +615,63 @@ export default function Index() {
     trackPageView('/', 'Accueil');
   }, []);
 
-  // Force la mise à jour du Service Worker à chaque chargement
+  // Force la mise à jour du Service Worker + clear cache - VERSION AUTO
   useEffect(() => {
+    console.log(`🚀 App version: ${VERSION_INFO.version} (${VERSION_INFO.buildDate})`);
+    
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(registrations => {
         registrations.forEach(reg => {
+          reg.update();
+          
           if (reg.waiting) {
-            // FIX: Utiliser MessageChannel pour éviter les erreurs
             const channel = new MessageChannel();
             channel.port1.onmessage = (event) => {
               if (event.data.success) {
+                clearAllCaches();
                 window.location.reload();
               }
             };
             reg.waiting.postMessage({ type: 'SKIP_WAITING' }, [channel.port2]);
           }
-          reg.update();
         });
       });
+
+      clearAllCaches();
     }
   }, []);
+
+  // Fonction pour vider tous les caches
+  const clearAllCaches = async () => {
+    try {
+      // Clear service worker caches
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = (event) => {
+          console.log('✅ Cache SW vidé:', event.data);
+        };
+        navigator.serviceWorker.controller.postMessage(
+          { type: 'CLEAR_CACHE' }, 
+          [channel.port2]
+        );
+      }
+
+      // Clear browser caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames
+            .filter(name => name.includes('moviestream'))
+            .map(name => {
+              console.log(`🗑️ Suppression cache browser: ${name}`);
+              return caches.delete(name);
+            })
+        );
+      }
+    } catch (error) {
+      console.error('Erreur lors du nettoyage des caches:', error);
+    }
+  };
 
   if (loading) {
     return (

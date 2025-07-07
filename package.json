@@ -3,11 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/generate-version.js",
     "build": "react-router build",
+    "postbuild": "node scripts/post-build.js",
+    "predev": "node scripts/generate-version.js",
     "dev": "react-router dev",
     "lint": "eslint --ignore-path .gitignore .",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "version:generate": "node scripts/generate-version.js",
+    "cache:clear": "node scripts/clear-cache.js"
   },
   "dependencies": {
     "@netlify/functions": "^4.1.8",
