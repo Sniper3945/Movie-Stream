@@ -2,10 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 
 const ADMIN_TOKEN_KEY = "admin_token";
-const API_URL =
-  window.location.hostname === "localhost"
-    ? "/.netlify/functions/admin-auth"
-    : "/api/admin-auth";
+const API_URL = "/.netlify/functions/admin-auth"; // Toujours utiliser Netlify Functions, même en prod
 
 export default function AdminAuth() {
   const [password, setPassword] = useState("");
