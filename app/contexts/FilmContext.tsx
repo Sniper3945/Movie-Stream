@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { films as staticFilms } from '../data/films';
 
@@ -11,7 +11,7 @@ interface Film {
   year?: number;
   genre?: string | string[];
   videoUrl?: string;
-  ephemere?: boolean; // Ajout pour supporter les films éphémères
+  ephemere?: boolean;
 }
 
 interface FilmContextType {
@@ -37,7 +37,7 @@ interface FilmProviderProps {
 }
 
 export const FilmProvider = ({ children }: FilmProviderProps) => {
-  const [films, setFilms] = useState<Film[]>(staticFilms);
+  const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,29 +45,30 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
     try {
       setLoading(true);
       
-      // Essayer MongoDB d'abord (avec timeout)
+      // Essayer MongoDB avec timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
       try {
-        const response = await fetch('/.netlify/functions/get-films', {
-          signal: controller.signal,
-        });
+        const response = await fetch(
+          '/.netlify/functions/get-films?all=true',
+          { signal: controller.signal }
+        );
         
         clearTimeout(timeoutId);
         
         if (response.ok) {
-          const mongoFilms = await response.json();
+          const data = await response.json();
           
-          if (mongoFilms && mongoFilms.length > 0) {
-            setFilms(mongoFilms);
+          if (data.films && data.films.length > 0) {
+            setFilms(data.films);
             setError(null);
             return;
           }
         }
-      } catch (fetchError) {
+      } catch (fetchError: any) {
         clearTimeout(timeoutId);
-        console.log('MongoDB fetch failed, using static films:', fetchError);
+        // Log silencieux, fallback vers films statiques
       }
       
       // Fallback vers films statiques
@@ -75,7 +76,6 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
       setError(null);
       
     } catch (error: any) {
-      console.error('Error in fetchFilms:', error);
       setFilms(staticFilms);
       setError(null);
     } finally {
@@ -83,9 +83,14 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
     }
   };
 
-  const getFilmById = (id: string) => {
+  const refetchFilms = useCallback(async () => {
+    console.log(`🔄 [FilmContext] Refetch films`);
+    await fetchFilms();
+  }, []);
+
+  const getFilmById = useCallback((id: string) => {
     return films.find(film => film.id === id);
-  };
+  }, [films]);
 
   useEffect(() => {
     fetchFilms();
@@ -95,7 +100,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
     films,
     loading,
     error,
-    refetchFilms: fetchFilms,
+    refetchFilms,
     getFilmById,
   };
 

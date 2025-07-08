@@ -4,6 +4,8 @@ import { useFilms } from "../contexts/FilmContext";
 import { trackFilmClick, initialize, trackPageView } from "../utils/analytics";
 import Fuse from "fuse.js";
 import { useScrollRestoration } from "../hooks/useScrollRestoration";
+import { useWaveLoader } from "../hooks/useWaveLoader";
+import { LazyImage } from "../components/LazyImage";
 import { motion, AnimatePresence } from "framer-motion";
 import { SparklesIcon, type SparklesIconHandle } from "../components/SparklesIcon";
 import { VERSION_INFO } from "../utils/version";
@@ -433,7 +435,7 @@ export default function Index() {
           },
           "year"
         ],
-        threshold: 0.4, // Ajuste la tolérance (0 = strict, 1 = très permissif)
+        threshold: 0.4,
       });
 
       result = fuse.search(searchQuery.trim()).map(res => res.item);
@@ -459,13 +461,6 @@ export default function Index() {
       case "duration-desc":
         result.sort((a, b) => parseDuration(b.duration) - parseDuration(a.duration));
         break;
-      // case "genre":
-      //   result.sort((a, b) => {
-      //     const genreA = Array.isArray(a.genre) ? a.genre[0] : a.genre || "";
-      //     const genreB = Array.isArray(b.genre) ? b.genre[0] : b.genre || "";
-      //     return genreA.localeCompare(genreB);
-      //   });
-      //   break;
       default:
         // Garder l'ordre par défaut (par ID ou date de création)
         break;
@@ -473,6 +468,48 @@ export default function Index() {
 
     return result;
   }, [films, searchQuery, sortBy]);
+
+  // Séparer les films éphémères et non éphémères
+  const ephemereFilms = filteredAndSortedFilms.filter(film => film.ephemere);
+  const regularFilms = filteredAndSortedFilms.filter(film => !film.ephemere);
+
+  // Utilise le hook pour la page d'accueil (clé unique)
+  const { save: saveScrollPosition } = useScrollRestoration({ 
+    key: "home",
+    enabled: true,
+    debug: false, // Désactiver le debug pour réduire les logs
+    restoreDelay: 50,
+    saveThrottle: 500 // Augmenter le throttle pour moins de logs
+  });
+
+  // Système de vagues pour les films réguliers
+  const {
+    visibleItems: visibleRegularFilms,
+    hasMoreWaves: hasMoreRegular,
+    isLoading: isLoadingRegular,
+    sentinelRef: sentinelRegularRef,
+    currentWave: currentRegularWave,
+    totalWaves: totalRegularWaves,
+    progress: regularProgress,
+  } = useWaveLoader({
+    items: regularFilms,
+    waveCount: 3,
+    initialWave: 1,
+    debug: false, // Production: pas de debug
+  });
+
+  // Système de vagues pour les films éphémères
+  const {
+    visibleItems: visibleEphemereFilms,
+    hasMoreWaves: hasMoreEphemere,
+    isLoading: isLoadingEphemere,
+    sentinelRef: sentinelEphemereRef,
+  } = useWaveLoader({
+    items: ephemereFilms,
+    waveCount: 2, // Moins de vagues pour les éphémères
+    initialWave: 1,
+    debug: false, // Production: pas de debug
+  });
 
   // Générer des suggestions basées sur les films disponibles
   const generateSuggestions = (query: string): string[] => {
@@ -538,20 +575,10 @@ export default function Index() {
     return option ? option.label : "Trier par";
   };
 
-  // Utilise le hook pour la page d'accueil (clé unique)
-  const { save: saveScrollPosition } = useScrollRestoration({ 
-    key: "home",
-    enabled: true,
-    debug: true,
-    restoreDelay: 50,
-    saveThrottle: 150
-  });
-
   useEffect(() => {
     // Restaure la position de scroll si elle existe (SPA ou retour)
     setTimeout(() => {
       const sessionScroll = sessionStorage.getItem("scroll-restoration:home");
-      // ...détection popstate/navType si tu veux garder la logique avancée...
       if (sessionScroll) {
         try {
           const { y, x } = JSON.parse(sessionScroll);
@@ -561,7 +588,6 @@ export default function Index() {
             const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
             const targetY = Math.min(y, maxScroll);
             window.scrollTo({ top: targetY, left: x || 0, behavior: "auto" });
-            // Pas de log spam ici
             if (
               (Math.abs(window.scrollY - targetY) > 2 || (targetY !== 0 && window.scrollY === 0)) &&
               tries < maxTries
@@ -569,14 +595,12 @@ export default function Index() {
               tries++;
               setTimeout(tryRestore, 50);
             } else {
-              // Nettoie la position restaurée pour éviter de la rejouer sur un reload
               sessionStorage.removeItem("scroll-restoration:home");
             }
           };
           tryRestore();
         } catch (e) {
-          // Optionnel : log minimal en cas d'erreur réelle
-          // console.log("[ScrollRestoration] Failed to parse sessionStorage value", e);
+          // Gestion d'erreur silencieuse
         }
       }
     }, 0);
@@ -593,17 +617,14 @@ export default function Index() {
       if (Math.abs(window.scrollY - lastScroll) > 100 || now - lastSave > 2000) {
         lastScroll = window.scrollY;
         lastSave = now;
-        // Pas de log ici
       }
       sessionStorage.setItem("scroll-restoration:home", JSON.stringify({ y: window.scrollY, x: window.scrollX }));
     };
     window.addEventListener("scroll", saveScroll);
 
-    // Sauvegarde aussi à l'unmount (log final, sans spam)
     return () => {
       if (window.scrollY !== 0 || sessionStorage.getItem("scroll-restoration:home") !== null) {
         sessionStorage.setItem("scroll-restoration:home", JSON.stringify({ y: window.scrollY, x: window.scrollX }));
-        // Pas de log ici
       }
       window.removeEventListener("scroll", saveScroll);
     };
@@ -683,10 +704,6 @@ export default function Index() {
       </div>
     );
   }
-
-  // Séparer les films éphémères et non éphémères
-  const ephemereFilms = filteredAndSortedFilms.filter(film => film.ephemere);
-  const regularFilms = filteredAndSortedFilms.filter(film => !film.ephemere);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -980,9 +997,12 @@ export default function Index() {
               <section className="mb-12">
                 <h2 className="text-2xl font-semibold mb-6 flex items-center">
                   Film Éphémère
+                  <span className="ml-2 text-sm text-gray-400">
+                    ({visibleEphemereFilms.length}/{ephemereFilms.length})
+                  </span>
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
-                  {ephemereFilms.map((film, index) => (
+                  {visibleEphemereFilms.map((film, index) => (
                     <Link
                       key={film.id}
                       to={`/watch/${film.id}`}
@@ -993,10 +1013,11 @@ export default function Index() {
                       }}
                     >
                       <div className="relative">
-                        <FilmImage
+                        <LazyImage
                           src={film.cover}
                           alt={`Affiche du film ${film.title}`}
                           className="w-full aspect-[2/3] object-cover rounded-lg"
+                          priority={index < 5} // Les 5 premières images éphémères sont prioritaires
                         />
                         {/* Badge éphémère */}
                         <span className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded shadow-lg z-10">
@@ -1011,7 +1032,7 @@ export default function Index() {
                             <div className="flex flex-wrap gap-1">
                               {(Array.isArray(film.genre) ? film.genre : film.genre?.split(', ') || [])
                                 .slice(0, 2)
-                                .map((genre, genreIndex) => (
+                                .map((genre: string, genreIndex: number) => (
                                 <span
                                   key={genreIndex}
                                   className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white ${getGenreColor(genre.trim())}`}
@@ -1026,6 +1047,18 @@ export default function Index() {
                     </Link>
                   ))}
                 </div>
+                
+                {/* Sentinel pour les films éphémères */}
+                {hasMoreEphemere && (
+                  <div ref={sentinelEphemereRef} className="w-full py-8 flex justify-center">
+                    {isLoadingEphemere && (
+                      <div className="flex items-center space-x-2 text-gray-400">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400"></div>
+                        <span>Chargement des films éphémères...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 
@@ -1034,10 +1067,27 @@ export default function Index() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center mb-6 space-y-2 sm:space-y-0 sm:space-x-4">
                 <h2 className="text-2xl font-semibold">
                   À l'affiche
+                  <span className="ml-2 text-sm text-gray-400">
+                    ({visibleRegularFilms.length}/{regularFilms.length})
+                  </span>
                 </h2>
+                {/* Indicateur de progression */}
+                {totalRegularWaves > 1 && (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 transition-all duration-300"
+                        style={{ width: `${regularProgress}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      Vague {currentRegularWave}/{totalRegularWaves}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
-                {regularFilms.map((film, index) => (
+                {visibleRegularFilms.map((film, index) => (
                   <Link
                     key={film.id}
                     to={`/watch/${film.id}`}
@@ -1048,10 +1098,11 @@ export default function Index() {
                     }}
                   >
                     <div className="relative">
-                      <FilmImage
+                      <LazyImage
                         src={film.cover}
                         alt={`Affiche du film ${film.title}`}
                         className="w-full aspect-[2/3] object-cover rounded-lg"
+                        priority={index < 10} // Les 10 premières images régulières sont prioritaires
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-end">
                         <div className="p-3 w-full">
@@ -1062,7 +1113,7 @@ export default function Index() {
                           <div className="flex flex-wrap gap-1">
                             {(Array.isArray(film.genre) ? film.genre : film.genre?.split(', ') || [])
                               .slice(0, 2)
-                              .map((genre, genreIndex) => (
+                              .map((genre: string, genreIndex: number) => (
                               <span
                                 key={genreIndex}
                                 className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white ${getGenreColor(genre.trim())}`}
@@ -1077,6 +1128,22 @@ export default function Index() {
                   </Link>
                 ))}
               </div>
+
+              {/* Sentinel pour charger plus de films */}
+              {hasMoreRegular && (
+                <div ref={sentinelRegularRef} className="w-full py-8 flex justify-center">
+                  {isLoadingRegular ? (
+                    <div className="flex items-center space-x-2 text-gray-400">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400"></div>
+                      <span>Chargement de la vague suivante...</span>
+                    </div>
+                  ) : (
+                    <div className="text-gray-500 text-sm">
+                      Scroll pour charger plus de films...
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           </>
         )}
@@ -1096,10 +1163,11 @@ export default function Index() {
                   }}
                 >
                   <div className="relative">
-                    <FilmImage
+                    <LazyImage
                       src={film.cover}
                       alt={`Affiche du film ${film.title}`}
                       className="w-full aspect-[2/3] object-cover rounded-lg"
+                      priority={index < 10} // Les 10 premières images de la recherche sont prioritaires
                     />
                     {/* Badge éphémère si besoin */}
                     {film.ephemere && (
@@ -1116,7 +1184,7 @@ export default function Index() {
                         <div className="flex flex-wrap gap-1">
                           {(Array.isArray(film.genre) ? film.genre : film.genre?.split(', ') || [])
                             .slice(0, 2)
-                            .map((genre, genreIndex) => (
+                            .map((genre: string, genreIndex: number) => (
                             <span
                               key={genreIndex}
                               className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white ${getGenreColor(genre.trim())}`}
@@ -1131,7 +1199,7 @@ export default function Index() {
                 </Link>
               ))}
             </div>
-            {regularFilms.length + ephemereFilms.length === 0 && (
+            {filteredAndSortedFilms.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-gray-400 mb-4">
                   <span className="material-icons text-6xl mb-4 block">search_off</span>

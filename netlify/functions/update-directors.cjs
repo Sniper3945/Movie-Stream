@@ -88,6 +88,7 @@ const filmSchema = new mongoose.Schema({
   director: { type: String, default: "" },
   ephemere: { type: Boolean, default: false }, // <-- Ajout du champ ephemere au schéma
   createdAt: { type: Date, default: Date.now },
+  img: { type: Buffer }, // Ajout du champ img
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);

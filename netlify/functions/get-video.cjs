@@ -9,10 +9,12 @@ const filmSchema = new mongoose.Schema({
   duration: { type: String, required: true },
   year: { type: Number, required: true },
   genre: { type: String, required: true },
-  coverUrl: { type: String, required: true },
+  coverUrl: { type: String, required: true }, // Ancien champ, peut être supprimé
   description: { type: String, required: true },
   videoUrl: { type: String, required: true },
+  director: { type: String, default: "" }, // Champ ajouté
   createdAt: { type: Date, default: Date.now },
+  img: { type: Buffer }, // Ajout du champ img
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);

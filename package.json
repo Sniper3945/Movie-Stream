@@ -15,7 +15,8 @@
     "cache:clear": "node scripts/clear-cache.js",
     "rename-images": "node scripts/rename-images.js",
     "update-films-data": "node scripts/update-films-data.js",
-    "setup-images": "npm run rename-images && npm run update-films-data"
+    "setup-images": "npm run rename-images && npm run update-films-data",
+    "migrate-images": "node scripts/migrate-images.js"
   },
   "dependencies": {
     "@netlify/functions": "^4.1.8",

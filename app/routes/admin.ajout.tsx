@@ -10,7 +10,8 @@ interface FilmForm {
   description: string;
   videoUrl: string;
   director: string;
-  ephemere: boolean; // Ajout du champ éphémère
+  ephemere: boolean;
+  cover: string | null; // Base64 de l'image
 }
 
 // Simple encryption function - FIX pour les caractères spéciaux
@@ -63,7 +64,8 @@ export default function AdminAjout() {
     description: '',
     videoUrl: '',
     director: '',
-    ephemere: false // Initialisation
+    ephemere: false,
+    cover: null
   });
   const [message, setMessage] = useState('');
   const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
@@ -73,6 +75,13 @@ export default function AdminAjout() {
   const [directorQuery, setDirectorQuery] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [genreInput, setGenreInput] = useState('');
+  
+  // États pour la gestion des images
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string>('');
+  const [showImageConfirm, setShowImageConfirm] = useState(false);
+  
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,6 +115,54 @@ export default function AdminAjout() {
     }
   };
 
+  // Fonction pour gérer l'upload d'image
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Vérifications
+    if (!file.type.includes('webp')) {
+      setImageError('Seul le format WebP est autorisé');
+      return;
+    }
+
+    if (file.size > 6 * 1024 * 1024) { // 6MB
+      setImageError(`Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(2)}MB). Limite: 6MB.`);
+      return;
+    }
+
+    console.log(`📸 [COVER] Fichier sélectionné: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`);
+    setImageError('');
+    setImageFile(file);
+
+    // Générer la preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setImagePreview(result);
+      setShowImageConfirm(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Confirmer l'utilisation de l'image
+  const confirmImage = () => {
+    if (imagePreview) {
+      setForm(prev => ({ ...prev, cover: imagePreview }));
+      setShowImageConfirm(false);
+      console.log(`✅ [COVER] Image confirmée pour ${form.title}`);
+    }
+  };
+
+  // Annuler l'image
+  const cancelImage = () => {
+    setImagePreview(null);
+    setImageFile(null);
+    setForm(prev => ({ ...prev, cover: null }));
+    setShowImageConfirm(false);
+    setImageError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -118,6 +175,8 @@ export default function AdminAjout() {
         return;
       }
 
+      console.log(`🎬 [COVER] Soumission film: ${form.title} (Cover: ${form.cover ? 'Oui' : 'Non'})`);
+
       // Use JSON instead of FormData since we're not uploading covers to MongoDB
       const filmData = {
         title: encryptData(form.title),
@@ -127,7 +186,8 @@ export default function AdminAjout() {
         description: encryptData(form.description),
         videoUrl: encryptData(form.videoUrl),
         director: form.director,
-        ephemere: form.ephemere // Ajout à l'objet envoyé
+        ephemere: form.ephemere,
+        cover: form.cover, // Base64 de l'image
       };
       
       const response = await fetch('/.netlify/functions/admin-add-film', {
@@ -143,8 +203,8 @@ export default function AdminAjout() {
 
       if (result.success) {
         setMessage(`✅ ${result.message}`);
-        if (result.coverInstruction) {
-          setMessage(prev => prev + `\n\n📁 ${result.coverInstruction.replace(/\.png/, '.webp')}`);
+        if (result.hasCover) {
+          setMessage(prev => prev + `\n📸 Cover uploadée avec succès`);
         }
         
         // Reset form
@@ -156,9 +216,13 @@ export default function AdminAjout() {
           description: '',
           videoUrl: '',
           director: '',
-          ephemere: false
+          ephemere: false,
+          cover: null
         });
         setSelectedGenres([]);
+        setImagePreview(null);
+        setImageFile(null);
+        setImageError('');
       } else {
         setMessage(`❌ ${result.error}`);
       }
@@ -552,20 +616,101 @@ export default function AdminAjout() {
                 />
               </div>
 
+              {/* Section Cover */}
               <div className="mb-6">
-                <label className="block mb-2 font-bold text-gray-300">Cover (Information)</label>
-                <div className="w-full p-4 bg-gray-800 rounded-lg text-gray-300 border border-gray-600">
-                  <div className="flex items-center">
-                    <span className="material-icons mr-3 text-blue-400">info</span>
-                    <div>
-                      <p className="font-medium">Gestion des covers</p>
-                      <p className="text-sm text-gray-400">
-                        Les covers sont gérées dans /public/assets/. Après ajout du film, 
-                        placez votre image cover dans le dossier assets avec le nom indiqué dans la confirmation.<br />
-                        <span className="text-yellow-400">Format recommandé : <b>.webp</b> (ex : film13.webp)</span>
-                      </p>
-                    </div>
+                <label className="block mb-2 font-bold text-gray-300">Cover du film</label>
+                <div className="space-y-4">
+                  
+                  {/* Zone d'upload */}
+                  <div className="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                    <input
+                      type="file"
+                      accept=".webp"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      id="cover-upload"
+                    />
+                    <label 
+                      htmlFor="cover-upload" 
+                      className="cursor-pointer block"
+                    >
+                      <div className="space-y-2">
+                        <span className="material-icons text-4xl text-gray-400">cloud_upload</span>
+                        <p className="text-gray-300">Cliquez pour sélectionner une image</p>
+                        <p className="text-sm text-gray-500">
+                          Format: WebP • Taille max: 6MB • Recommandé: 400x600px
+                        </p>
+                      </div>
+                    </label>
                   </div>
+
+                  {/* Erreur d'image */}
+                  {imageError && (
+                    <div className="bg-red-900 text-red-400 p-3 rounded-lg border border-red-700">
+                      {imageError}
+                    </div>
+                  )}
+
+                  {/* Preview et confirmation */}
+                  {showImageConfirm && imagePreview && (
+                    <div className="bg-gray-800 p-4 rounded-lg border border-gray-600">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0">
+                          <img 
+                            src={imagePreview} 
+                            alt="Preview" 
+                            className="w-32 h-48 object-cover rounded-lg border border-gray-600"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-white mb-2">Confirmer cette image ?</h4>
+                          <p className="text-sm text-gray-400 mb-4">
+                            {imageFile?.name} ({(imageFile?.size! / 1024).toFixed(2)}KB)
+                          </p>
+                          <div className="flex space-x-3">
+                            <button
+                              type="button"
+                              onClick={confirmImage}
+                              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              ✅ Confirmer
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelImage}
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              ❌ Annuler
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image confirmée */}
+                  {form.cover && !showImageConfirm && (
+                    <div className="bg-green-900 p-4 rounded-lg border border-green-700">
+                      <div className="flex items-center space-x-4">
+                        <img 
+                          src={form.cover} 
+                          alt="Cover confirmée" 
+                          className="w-16 h-24 object-cover rounded border border-green-600"
+                        />
+                        <div className="flex-1">
+                          <p className="text-green-300 font-medium">✅ Cover prête</p>
+                          <p className="text-sm text-green-400">Image confirmée et prête pour l'upload</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={cancelImage}
+                          className="text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <span className="material-icons">close</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -602,6 +747,7 @@ export default function AdminAjout() {
                   </>
                 )}
               </button>
+              
               {message && (
                 <div className={`mt-6 p-4 rounded-lg text-center whitespace-pre-line ${
                   message.includes('✅') ? 'bg-green-900 text-green-400 border border-green-700' : 'bg-red-900 text-red-400 border border-red-700'

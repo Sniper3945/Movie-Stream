@@ -14,7 +14,7 @@ if (!MONGODB_URI || !ADMIN_PASSWORD || !ENCRYPTION_KEY) {
   });
 }
 
-// Film Schema WITHOUT coverUrl - covers handled by static assets
+// Film Schema avec champ img
 const filmSchema = new mongoose.Schema({
   title: { type: String, required: true },
   duration: { type: String, required: true },
@@ -24,7 +24,8 @@ const filmSchema = new mongoose.Schema({
   videoUrl: { type: String, required: true },
   director: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
-  ephemere: { type: Boolean, default: false }, // Ajout du champ éphémère
+  ephemere: { type: Boolean, default: false },
+  img: { type: Buffer }, // Buffer pour l'image
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);
@@ -67,6 +68,40 @@ const decryptData = (encryptedData) => {
   }
 };
 
+// Fonction pour valider et traiter l'image
+const processImage = (imageData) => {
+  try {
+    // Extraire les données base64
+    const base64Match = imageData.match(/^data:image\/webp;base64,(.+)$/);
+    if (!base64Match) {
+      throw new Error(
+        "Format d'image invalide. Seul le format WebP est supporté."
+      );
+    }
+
+    const base64Data = base64Match[1];
+    const buffer = Buffer.from(base64Data, "base64");
+
+    // Vérifier la taille (6MB limit)
+    const maxSize = 6 * 1024 * 1024; // 6MB
+    if (buffer.length > maxSize) {
+      throw new Error(
+        `Image trop grande (${(buffer.length / 1024 / 1024).toFixed(
+          2
+        )}MB). Limite: 6MB.`
+      );
+    }
+
+    console.log(
+      `✅ [COVER] Image validée: ${(buffer.length / 1024).toFixed(2)}KB`
+    );
+    return buffer;
+  } catch (error) {
+    console.error("❌ [COVER] Erreur traitement image:", error.message);
+    throw error;
+  }
+};
+
 exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
@@ -97,6 +132,7 @@ exports.handler = async (event, context) => {
       videoUrl,
       director,
       ephemere,
+      cover, // Image en base64
     } = formData;
 
     if (!title || !duration || !year || !genre || !description || !videoUrl) {
@@ -110,11 +146,29 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Get current film count to determine cover filename
-    const filmCount = await Film.countDocuments();
-    const nextFilmNumber = filmCount + 1; // Start at film13.png
+    console.log(`🎬 [COVER] Ajout nouveau film: ${title}`);
 
-    // Create film without coverUrl - cover will be film[x].png
+    // Traitement de l'image
+    let imageBuffer = null;
+    if (cover) {
+      try {
+        imageBuffer = processImage(cover);
+        console.log(`✅ [COVER] Image traitée pour ${title}`);
+      } catch (error) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: error.message,
+          }),
+        };
+      }
+    } else {
+      console.log(`⚠️ [COVER] Pas d'image fournie pour ${title}`);
+    }
+
+    // Créer le film
     const newFilm = new Film({
       title: decryptData(title),
       duration,
@@ -123,19 +177,23 @@ exports.handler = async (event, context) => {
       description: decryptData(description),
       videoUrl: decryptData(videoUrl),
       director: director || "",
-      ephemere: !!ephemere, // Ajout du champ éphémère
+      ephemere: !!ephemere,
+      img: imageBuffer, // Stocker l'image
     });
 
     const savedFilm = await newFilm.save();
+    console.log(
+      `✅ [COVER] Film sauvegardé: ${savedFilm.title} (ID: ${savedFilm._id})`
+    );
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        message: "Film added successfully",
+        message: "Film ajouté avec succès",
         filmId: savedFilm._id,
-        coverInstruction: `Please add cover image as: /public/assets/film${nextFilmNumber}.png`,
+        hasCover: !!imageBuffer,
       }),
     };
   } catch (error) {

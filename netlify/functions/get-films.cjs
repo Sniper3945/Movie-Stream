@@ -7,7 +7,7 @@ if (!MONGODB_URI) {
   console.error("❌ MONGODB_URI_APP not found in environment variables");
 }
 
-// Film Schema - pas de changement nécessaire
+// Film Schema avec champ img
 const filmSchema = new mongoose.Schema({
   title: { type: String, required: true },
   duration: { type: String, required: true },
@@ -18,7 +18,7 @@ const filmSchema = new mongoose.Schema({
   director: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
   ephemere: { type: Boolean, default: false },
-  // PAS de champ "asked" ici - il est dans FilmIdea
+  img: { type: Buffer }, // Buffer pour l'image
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);
@@ -52,23 +52,20 @@ exports.handler = async (event, context) => {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Content-Type": "application/json",
-    "Cache-Control": "no-store", // Empêche le cache navigateur/proxy
+    "Cache-Control": "no-store",
   };
 
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers };
   }
 
-  console.log("➡️ [get-films] API called"); // Ajoute ce log
-
   try {
     await connectDB();
 
-    let films = [];
-
     try {
-      const dbFilms = await Film.find({}).lean().exec();
-      films = dbFilms.map((film, index) => ({
+      const dbFilms = await Film.find({}).select("-img").lean().exec();
+
+      const mappedFilms = dbFilms.map((film) => ({
         id: film._id.toString(),
         title: film.title,
         duration: film.duration,
@@ -77,30 +74,37 @@ exports.handler = async (event, context) => {
         description: film.description,
         videoUrl: film.videoUrl,
         director: film.director || "",
-        ephemere: film.ephemere || false, // Expose le champ éphémère côté client
-        cover: `/assets/film${index + 1}.webp`,
+        ephemere: film.ephemere || false,
+        cover: `/.netlify/functions/get-cover?id=${film._id}`,
       }));
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          films: mappedFilms,
+          pagination: null,
+        }),
+      };
     } catch (dbError) {
-      console.error("❌ Error fetching films from MongoDB:", dbError.message);
-
-      // En cas d'erreur DB, retourner un tableau vide
-      // Le fallback sera géré côté client avec films.ts
-      films = [];
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          films: [],
+          pagination: null,
+        }),
+      };
     }
-
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(films),
-    };
   } catch (error) {
-    console.error("❌ MongoDB error:", error.message);
-
-    // Retourner un tableau vide pour que le fallback côté client fonctionne
     return {
-      statusCode: 200,
+      statusCode: 500,
       headers,
-      body: JSON.stringify([]),
+      body: JSON.stringify({
+        films: [],
+        pagination: null,
+        error: "Erreur serveur",
+      }),
     };
   }
 };

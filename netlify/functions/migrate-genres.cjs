@@ -47,7 +47,9 @@ const filmSchema = new mongoose.Schema({
   genre: { type: String, required: true },
   description: { type: String, required: true },
   videoUrl: { type: String, required: true },
+  director: { type: String, default: "" }, // Champ ajouté
   createdAt: { type: Date, default: Date.now },
+  img: { type: Buffer }, // Ajout du champ img
 });
 
 const Film = mongoose.models.Film || mongoose.model("Film", filmSchema);

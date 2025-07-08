@@ -188,7 +188,7 @@ export default function Watch() {
         </div>
       </header>
 
-      {/* Video Player - Plus petit sur desktop */}
+      {/* Video Player */}
       <div className="container mx-auto px-4 md:px-8 py-8">
         <div className="relative w-full max-w-4xl mx-auto aspect-video bg-black rounded-lg overflow-hidden shadow-2xl">
           {isVideoLoading && (
@@ -230,7 +230,7 @@ export default function Watch() {
                   setVideoError(true);
                   setIsVideoLoading(false);
                 }}
-                poster={currentFilm.cover.replace(/\.png$/, '.webp')}
+                poster={currentFilm.cover}
               />
             ) : (
               // Lien direct (mp4, 0x0.st, archive.org, etc)
@@ -246,7 +246,7 @@ export default function Watch() {
                   setVideoError(true);
                   setIsVideoLoading(false);
                 }}
-                poster={currentFilm.cover.replace(/\.png$/, '.webp')}
+                poster={currentFilm.cover}
               >
                 Votre navigateur ne supporte pas la lecture vidéo.
               </video>

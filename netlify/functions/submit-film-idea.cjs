@@ -143,7 +143,6 @@ exports.handler = async (event, context) => {
 
     const { title, director, year, overview, tmdbId } = JSON.parse(event.body);
 
-    // Validation et nettoyage
     const cleanTitle = sanitizeInput(title);
     const cleanDirector = sanitizeInput(director);
     const cleanOverview = sanitizeInput(overview);
@@ -188,7 +187,6 @@ exports.handler = async (event, context) => {
     );
 
     if (existingIdea) {
-      // Incrémenter le compteur "asked" et mettre à jour updatedAt
       await FilmIdea.findByIdAndUpdate(existingIdea._id, {
         $inc: { asked: 1 },
         $set: { updatedAt: new Date() },
@@ -235,8 +233,6 @@ exports.handler = async (event, context) => {
       }),
     };
   } catch (error) {
-    // Ne pas exposer les détails techniques en production
-    console.error("❌ Submit film idea error:", error.message);
     return {
       statusCode: 500,
       headers,
