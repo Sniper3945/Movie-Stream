@@ -701,6 +701,93 @@ export const NetflixVideoPlayer = ({
 
   // Si mobile, utiliser le player natif
   if (isMobile) {
+    // Initialisation simplifiée pour mobile
+    useEffect(() => {
+      const video = videoRef.current;
+      if (!video || !src) return;
+
+      setError(null);
+      setIsLoading(true);
+
+      // Pour mobile, gérer directement la source sans HLS.js
+      if (isHLS && src.includes('.m3u8')) {
+        // Safari mobile supporte nativement HLS
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = src;
+        } else {
+          setError('Format HLS non supporté sur cet appareil');
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // Vidéo directe
+        video.src = src;
+      }
+
+      // Position sauvegardée
+      if (savedTime > 0) {
+        const setSavedTimeWhenReady = () => {
+          if (video.readyState >= 2) {
+            video.currentTime = savedTime;
+          } else {
+            video.addEventListener('loadeddata', () => {
+              video.currentTime = savedTime;
+            }, { once: true });
+          }
+        };
+        setSavedTimeWhenReady();
+      }
+
+      // Événements simplifiés pour mobile
+      const handleLoadStart = () => {
+        setIsLoading(true);
+        setError(null);
+      };
+
+      const handleCanPlay = () => {
+        setIsLoading(false);
+        setError(null);
+      };
+
+      const handleLoadedData = () => {
+        setIsLoading(false);
+        setError(null);
+      };
+
+      const handleError = () => {
+        setIsLoading(false);
+        setError('Impossible de charger cette vidéo sur mobile');
+      };
+
+      const handleTimeUpdate = () => {
+        if (onProgress && video.duration) {
+          onProgress(video.currentTime, video.duration);
+        }
+      };
+
+      // Forcer l'arrêt du loading après 3 secondes max
+      const forceStopLoading = setTimeout(() => {
+        if (isLoading) {
+          setIsLoading(false);
+        }
+      }, 3000);
+
+      video.addEventListener('loadstart', handleLoadStart);
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('error', handleError);
+      video.addEventListener('timeupdate', handleTimeUpdate);
+
+      return () => {
+        clearTimeout(forceStopLoading);
+        video.removeEventListener('loadstart', handleLoadStart);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('error', handleError);
+        video.removeEventListener('timeupdate', handleTimeUpdate);
+      };
+    }, [src, isHLS, savedTime, onProgress, isLoading]);
+
     return (
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
         <video
@@ -710,26 +797,65 @@ export const NetflixVideoPlayer = ({
           controls
           playsInline
           preload="metadata"
-          onTimeUpdate={() => {
-            const video = videoRef.current;
-            if (video && onProgress) {
-              onProgress(video.currentTime, video.duration);
-            }
+          onLoadStart={() => {
+            setIsLoading(true);
+            setError(null);
+          }}
+          onCanPlay={() => {
+            setIsLoading(false);
           }}
           onLoadedData={() => {
+            setIsLoading(false);
             const video = videoRef.current;
             if (video && savedTime > 0) {
               video.currentTime = savedTime;
             }
           }}
+          onError={() => {
+            setIsLoading(false);
+            setError('Erreur de lecture vidéo mobile');
+          }}
+          onTimeUpdate={() => {
+            const video = videoRef.current;
+            if (video && onProgress && video.duration) {
+              onProgress(video.currentTime, video.duration);
+            }
+          }}
         />
         
+        {/* Debug mobile visible à l'écran */}
+        {(isLoading || error) && (
+          <div className="absolute top-2 left-2 right-2 z-50 bg-black bg-opacity-80 text-white p-2 rounded text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-yellow-400">📱 Debug Mobile</span>
+              <span className="text-gray-400">{new Date().toLocaleTimeString()}</span>
+            </div>
+            <div className="mt-1 space-y-1">
+              <div>🔗 Source: {src ? `${src.substring(0, 30)}...` : 'Aucune'}</div>
+              <div>📺 HLS: {isHLS ? 'Oui' : 'Non'}</div>
+              <div>📱 Mobile: {isMobile ? 'Oui' : 'Non'}</div>
+              <div>⏱️ SavedTime: {savedTime}s</div>
+              <div>🔄 Loading: {isLoading ? 'Oui' : 'Non'}</div>
+              <div>❌ Error: {error || 'Aucune'}</div>
+              {videoRef.current && (
+                <>
+                  <div>📊 ReadyState: {videoRef.current.readyState}</div>
+                  <div>🎵 CanPlayType: {videoRef.current.canPlayType('application/vnd.apple.mpegurl') || 'Non'}</div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Overlay de chargement simple pour mobile */}
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-90">
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
               <p className="text-white text-sm">Chargement de {title}...</p>
+              <p className="text-gray-400 text-xs mt-2">
+                {isHLS ? 'Streaming HLS' : 'Vidéo directe'}
+              </p>
             </div>
           </div>
         )}
@@ -743,12 +869,27 @@ export const NetflixVideoPlayer = ({
               </div>
               <h3 className="text-lg font-bold mb-2">Erreur de lecture</h3>
               <p className="text-gray-300 mb-4 text-sm">{error}</p>
-              <button 
-                onClick={() => window.location.reload()}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
-              >
-                Réessayer
-              </button>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => {
+                    setError(null);
+                    setIsLoading(true);
+                    const video = videoRef.current;
+                    if (video) {
+                      video.load();
+                    }
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm mr-2"
+                >
+                  Réessayer
+                </button>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
+                >
+                  Recharger la page
+                </button>
+              </div>
             </div>
           </div>
         )}
