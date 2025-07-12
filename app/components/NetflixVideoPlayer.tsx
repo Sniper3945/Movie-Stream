@@ -490,10 +490,33 @@ export const NetflixVideoPlayer = ({
       if (isFullscreen) {
         await document.exitFullscreen();
       } else {
-        await container.requestFullscreen();
+        // Amélioration pour mobile : utiliser webkitRequestFullscreen pour iOS/Safari
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+        } else if ((container as any).webkitRequestFullscreen) {
+          // Safari iOS
+          await (container as any).webkitRequestFullscreen();
+        } else if ((container as any).mozRequestFullScreen) {
+          // Firefox
+          await (container as any).mozRequestFullScreen();
+        } else if ((container as any).msRequestFullscreen) {
+          // IE/Edge
+          await (container as any).msRequestFullscreen();
+        }
       }
     } catch (error) {
       console.error('Erreur fullscreen:', error);
+      // Fallback pour mobile : essayer le fullscreen sur l'élément vidéo
+      if (isMobile) {
+        const video = videoRef.current;
+        if (video && (video as any).webkitEnterFullscreen) {
+          try {
+            (video as any).webkitEnterFullscreen();
+          } catch (videoError) {
+            console.error('Erreur fallback fullscreen:', videoError);
+          }
+        }
+      }
     }
   };
 
@@ -696,7 +719,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact"
               aria-label={isPlaying ? "Pause" : "Lecture"}
             >
-              <span className="material-icons text-lg sm:text-xl">
+              <span className="material-icons text-xl sm:text-xl">
                 {isPlaying ? 'pause' : 'play_arrow'}
               </span>
             </button>
@@ -712,7 +735,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact hidden xs:block"
               aria-label="Reculer de 10 secondes"
             >
-              <span className="material-icons text-sm sm:text-lg">replay_10</span>
+              <span className="material-icons text-lg sm:text-lg">replay_10</span>
             </button>
 
             <button
@@ -725,7 +748,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact hidden xs:block"
               aria-label="Avancer de 10 secondes"
             >
-              <span className="material-icons text-sm sm:text-lg">forward_10</span>
+              <span className="material-icons text-lg sm:text-lg">forward_10</span>
             </button>
 
             {/* Volume - simplifié sur mobile */}
@@ -740,7 +763,7 @@ export const NetflixVideoPlayer = ({
                 className="netflix-control-button-compact"
                 aria-label={isMuted ? "Activer le son" : "Couper le son"}
               >
-                <span className="material-icons text-sm sm:text-lg">
+                <span className="material-icons text-lg sm:text-lg">
                   {isMuted || volume === 0 ? 'volume_off' : 
                    volume < 0.5 ? 'volume_down' : 'volume_up'}
                 </span>
@@ -826,7 +849,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact"
               aria-label={isFullscreen ? "Quitter plein écran" : "Plein écran"}
             >
-              <span className="material-icons text-sm sm:text-lg">
+              <span className="material-icons text-lg sm:text-lg">
                 {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
               </span>
             </button>

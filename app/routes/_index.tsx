@@ -1223,7 +1223,7 @@ export default function Index() {
                     <div className="space-y-3 md:space-y-4 text-gray-300 leading-relaxed">
                       <p className="text-sm md:text-base">
                         Actuellement, MovieStream fonctionne sur un <span className="text-teal-400 font-medium">service payant</span> qui propose un essai gratuit de 14 jours, pour des questions financières
-                        je bénéficie de plusieurs essai gratuit en alternant entre plusieurs comptes. Cette méthode, bien que peu éthique me permet de 
+                        je bénéficie de plusieurs essai gratuit en alternant entre plusieurs comptes <span className="text-teal-400 font-medium">(d'ou les films "éphémères")</span>. Cette méthode, bien que peu éthique me permet de 
                         maintenir le site sans frais, mais limite considérablement le nombre de films disponibles.
                       </p>
                       
@@ -1234,7 +1234,7 @@ export default function Index() {
                             <h4 className="font-semibold text-teal-400 mb-2 text-sm md:text-base">Solution pour plus de contenu</h4>
                             <p className="text-sm md:text-base text-gray-300">
                               Si chaque utilisateur contribuait seulement <span className="text-white font-bold">3€</span>, 
-                              je pourrais investir dans un serveur dédié (≈ 80-90€/mois) et devenir complètement autonome. 
+                              je pourrais investir dans un serveur dédié (≈ 80-90€) et devenir complètement autonome. 
                               Cela me permettrait d'ajouter <span className="text-white font-bold">plus de 500 films </span> 
                               sans dépendre de services externes !
                             </p>
