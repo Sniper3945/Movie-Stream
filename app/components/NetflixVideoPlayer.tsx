@@ -45,10 +45,110 @@ export const NetflixVideoPlayer = ({
   const [showVolumeOverlay, setShowVolumeOverlay] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [lastMouseMove, setLastMouseMove] = useState(Date.now());
+  const [isMobile, setIsMobile] = useState(false);
   
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const skipTimeoutRef = useRef<NodeJS.Timeout| null>(null);
+  const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Détection mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Gestion intelligente de l'auto-hide des contrôles
+  const startHideControlsTimer = useCallback(() => {
+    if (hideControlsTimeoutRef.current) {
+      clearTimeout(hideControlsTimeoutRef.current);
+    }
+    
+    hideControlsTimeoutRef.current = setTimeout(() => {
+      if (isPlaying && !showVolumeSlider && !showSpeedMenu) {
+        setShowControls(false);
+      }
+    }, 3000);
+  }, [isPlaying, showVolumeSlider, showSpeedMenu]);
+
+  const showControlsTemporarily = useCallback(() => {
+    setShowControls(true);
+    if (isPlaying) {
+      startHideControlsTimer();
+    }
+  }, [isPlaying, startHideControlsTimer]);
+
+  // Gestionnaire de mouvement souris (desktop uniquement)
+  const handleMouseMove = useCallback(() => {
+    if (!isMobile) {
+      setLastMouseMove(Date.now());
+      showControlsTemporarily();
+    }
+  }, [isMobile, showControlsTemporarily]);
+
+  // Gestionnaire de clic container (mobile = toggle controls, desktop = play/pause)
+  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+    // Ne pas intercepter les clics sur les contrôles
+    if ((e.target as HTMLElement).closest('.netflix-controls')) {
+      return;
+    }
+    
+    if (isMobile) {
+      // Mobile: toggle contrôles
+      if (showControls) {
+        setShowControls(false);
+        if (hideControlsTimeoutRef.current) {
+          clearTimeout(hideControlsTimeoutRef.current);
+        }
+      } else {
+        showControlsTemporarily();
+      }
+    } else {
+      // Desktop: play/pause
+      togglePlay();
+    }
+  }, [isMobile, showControls, showControlsTemporarily]);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!isMobile) {
+      setIsHovering(true);
+      showControlsTemporarily();
+    }
+  }, [isMobile, showControlsTemporarily]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!isMobile) {
+      setIsHovering(false);
+      if (isPlaying) {
+        startHideControlsTimer();
+      }
+    }
+  }, [isMobile, isPlaying, startHideControlsTimer]);
+
+  // Auto-hide quand lecture commence/s'arrête
+  useEffect(() => {
+    if (isPlaying && !showVolumeSlider && !showSpeedMenu) {
+      startHideControlsTimer();
+    } else {
+      if (hideControlsTimeoutRef.current) {
+        clearTimeout(hideControlsTimeoutRef.current);
+      }
+      if (!isPlaying) {
+        setShowControls(true);
+      }
+    }
+
+    return () => {
+      if (hideControlsTimeoutRef.current) {
+        clearTimeout(hideControlsTimeoutRef.current);
+      }
+    };
+  }, [isPlaying, showVolumeSlider, showSpeedMenu, startHideControlsTimer]);
 
   // Initialisation du player
   useEffect(() => {
@@ -229,48 +329,15 @@ export const NetflixVideoPlayer = ({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Auto-hide des contrôles intelligent et plus rapide
-  const hideControlsAfterDelay = useCallback(() => {
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying && !isHovering) {
-        setShowControls(false);
-      }
-    }, 2000); // Réduit de 3s à 2s
-  }, [isPlaying, isHovering]);
-
-  const handleMouseMove = useCallback(() => {
-    setLastMouseMove(Date.now());
-    if (!showControls) {
-      setShowControls(true);
-    }
-    hideControlsAfterDelay();
-  }, [hideControlsAfterDelay, showControls]);
-
-  const handleMouseEnter = useCallback(() => {
-    setIsHovering(true);
-    setShowControls(true);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setIsHovering(false);
-    if (isPlaying) {
-      hideControlsAfterDelay();
-    }
-  }, [hideControlsAfterDelay, isPlaying]);
-
-  // Auto-hide pendant la lecture (même sans mouvement)
+  // Nettoyage des timeouts
   useEffect(() => {
-    if (isPlaying && !isHovering) {
-      const autoHideTimer = setTimeout(() => {
-        setShowControls(false);
-      }, 3000);
-      
-      return () => clearTimeout(autoHideTimer);
-    }
-  }, [isPlaying, isHovering]);
+    return () => {
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
+      if (skipTimeoutRef.current) clearTimeout(skipTimeoutRef.current);
+      if (hideControlsTimeoutRef.current) clearTimeout(hideControlsTimeoutRef.current);
+    };
+  }, []);
 
   // Raccourcis clavier comme Netflix
   useEffect(() => {
@@ -373,12 +440,14 @@ export const NetflixVideoPlayer = ({
     const progressBar = progressRef.current;
     if (!video || !progressBar || duration === 0) return;
 
+    e.stopPropagation(); // Empêcher le toggle des contrôles
     const rect = progressBar.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const percentage = Math.max(0, Math.min(1, clickX / rect.width));
     const newTime = percentage * duration;
     
     video.currentTime = newTime;
+    showControlsTemporarily(); // Réafficher après seek
   };
 
   const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -456,11 +525,13 @@ export const NetflixVideoPlayer = ({
   return (
     <div 
       ref={containerRef}
-      className="netflix-player relative w-full aspect-video bg-black rounded-lg overflow-hidden group cursor-none"
+      className={`netflix-player relative w-full aspect-video bg-black rounded-lg overflow-hidden group ${
+        showControls || !isPlaying ? 'cursor-default' : 'cursor-none'
+      }`}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onClick={togglePlay}
+      onClick={handleContainerClick}
     >
       {/* Vidéo */}
       <video
@@ -562,8 +633,8 @@ export const NetflixVideoPlayer = ({
       )}
 
       {/* Contrôles Netflix-style optimisés */}
-      <div className={`netflix-controls absolute bottom-0 left-0 right-0 z-20 transition-all duration-500 ease-out ${
-        showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      <div className={`netflix-controls absolute bottom-0 left-0 right-0 z-20 transition-all duration-300 ease-out ${
+        showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
       }`}>
         
         {/* Barre de progression avec preview - mobile optimisé et plus visible */}
@@ -612,7 +683,7 @@ export const NetflixVideoPlayer = ({
         </div>
 
         {/* Contrôles compacts - mobile optimisé */}
-        <div className="flex items-center justify-between px-2 sm:px-3 pb-1 sm:pb-3 space-x-1 sm:space-x-2">
+        <div className="flex items-center justify-between px-2 sm:px-3 sm:pb-3 space-x-1 sm:space-x-2">
           {/* Contrôles de gauche - plus compacts */}
           <div className="flex items-center space-x-1 sm:space-x-2">
             {/* Play/Pause */}
@@ -620,22 +691,26 @@ export const NetflixVideoPlayer = ({
               onClick={(e) => {
                 e.stopPropagation();
                 togglePlay();
+                showControlsTemporarily();
               }}
               className="netflix-control-button-compact"
+              aria-label={isPlaying ? "Pause" : "Lecture"}
             >
               <span className="material-icons text-lg sm:text-xl">
                 {isPlaying ? 'pause' : 'play_arrow'}
               </span>
             </button>
 
-            {/* Skip buttons - masqués sur très petits écrans */}
+            {/* Skip buttons */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 skip(-10);
                 showSkipIndicator('backward');
+                showControlsTemporarily();
               }}
               className="netflix-control-button-compact hidden xs:block"
+              aria-label="Reculer de 10 secondes"
             >
               <span className="material-icons text-sm sm:text-lg">replay_10</span>
             </button>
@@ -645,8 +720,10 @@ export const NetflixVideoPlayer = ({
                 e.stopPropagation();
                 skip(10);
                 showSkipIndicator('forward');
+                showControlsTemporarily();
               }}
               className="netflix-control-button-compact hidden xs:block"
+              aria-label="Avancer de 10 secondes"
             >
               <span className="material-icons text-sm sm:text-lg">forward_10</span>
             </button>
@@ -657,9 +734,11 @@ export const NetflixVideoPlayer = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleMute();
+                  showControlsTemporarily();
                 }}
-                onMouseEnter={() => setShowVolumeSlider(true)}
+                onMouseEnter={() => !isMobile && setShowVolumeSlider(true)}
                 className="netflix-control-button-compact"
+                aria-label={isMuted ? "Activer le son" : "Couper le son"}
               >
                 <span className="material-icons text-sm sm:text-lg">
                   {isMuted || volume === 0 ? 'volume_off' : 
@@ -667,28 +746,31 @@ export const NetflixVideoPlayer = ({
                 </span>
               </button>
               
-              {/* Slider de volume compact - masqué sur petit mobile */}
-              <div 
-                className={`netflix-volume-slider-compact transition-all duration-200 hidden sm:block ${
-                  showVolumeSlider ? 'opacity-100 w-12 sm:w-16' : 'opacity-0 w-0'
-                }`}
-                ref={volumeRef}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleVolumeChange(e);
-                }}
-                onMouseLeave={() => setShowVolumeSlider(false)}
-              >
-                <div className="netflix-volume-track-compact">
-                  <div 
-                    className="netflix-volume-fill-compact"
-                    style={{ width: `${volumePercentage}%` }}
-                  />
+              {/* Slider de volume compact - masqué sur mobile */}
+              {!isMobile && (
+                <div 
+                  className={`netflix-volume-slider-compact transition-all duration-200 ${
+                    showVolumeSlider ? 'opacity-100 w-12 sm:w-16' : 'opacity-0 w-0'
+                  }`}
+                  ref={volumeRef}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleVolumeChange(e);
+                    showControlsTemporarily();
+                  }}
+                  onMouseLeave={() => setShowVolumeSlider(false)}
+                >
+                  <div className="netflix-volume-track-compact">
+                    <div 
+                      className="netflix-volume-fill-compact"
+                      style={{ width: `${volumePercentage}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Temps compact - format réduit sur mobile */}
+            {/* Temps compact */}
             <span className="text-white text-xs font-medium ml-1 sm:ml-2 hidden sm:block">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
@@ -697,16 +779,18 @@ export const NetflixVideoPlayer = ({
             </span>
           </div>
 
-          {/* Contrôles de droite - plus compacts */}
+          {/* Contrôles de droite */}
           <div className="flex items-center space-x-1">
-            {/* Vitesse de lecture - masquée sur petit mobile */}
+            {/* Vitesse de lecture */}
             <div className="relative hidden sm:block">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowSpeedMenu(!showSpeedMenu);
+                  showControlsTemporarily();
                 }}
                 className="netflix-control-button-compact text-xs font-bold min-w-[2rem] sm:min-w-[2.5rem] h-6 sm:h-8"
+                aria-label="Vitesse de lecture"
               >
                 {playbackRate}x
               </button>
@@ -719,6 +803,7 @@ export const NetflixVideoPlayer = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         changePlaybackRate(rate);
+                        showControlsTemporarily();
                       }}
                       className={`netflix-speed-option-compact ${
                         playbackRate === rate ? 'active' : ''
@@ -736,8 +821,10 @@ export const NetflixVideoPlayer = ({
               onClick={(e) => {
                 e.stopPropagation();
                 toggleFullscreen();
+                showControlsTemporarily();
               }}
               className="netflix-control-button-compact"
+              aria-label={isFullscreen ? "Quitter plein écran" : "Plein écran"}
             >
               <span className="material-icons text-sm sm:text-lg">
                 {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}

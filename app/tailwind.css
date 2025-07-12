@@ -785,7 +785,6 @@ input[type="radio"]:focus {
   color: white;
   background: transparent;
   border: none;
-  padding: 6px;
   border-radius: 50%;
   transition: all 0.15s ease;
   display: flex;
@@ -813,7 +812,7 @@ input[type="radio"]:focus {
 .netflix-progress-track-compact {
   height: 4px;
   background: rgba(255, 255, 255, 0.25);
-  border-radius: 2px;
+  border-radius: 27px;
   overflow: hidden;
   position: relative;
   transition: height 0.15s ease;
@@ -888,7 +887,7 @@ input[type="radio"]:focus {
   }
 
   .netflix-progress-container-compact:hover .netflix-progress-track-compact {
-    height: 8px;
+    height: 6px;
   }
 
   .netflix-progress-container-compact {
@@ -942,13 +941,13 @@ input[type="radio"]:focus {
 /* Optimisations spécifiques pour très petits écrans */
 @media (max-width: 480px) {
   .netflix-controls {
-    padding: 3px 6px;
+    padding: 0px 6px;
   }
 
   .netflix-control-button-compact {
     min-width: 20px;
     min-height: 20px;
-    padding: 2px;
+    padding: 0px;
   }
 
   .netflix-control-button-compact .material-icons {
@@ -961,7 +960,7 @@ input[type="radio"]:focus {
   }
 
   .netflix-progress-track-compact {
-    height: 8px; /* Très épais pour être visible */
+    height: 6px; /* Très épais pour être visible */
     background: rgba(255, 255, 255, 0.5); /* Très visible */
   }
 

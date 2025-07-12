@@ -1211,7 +1211,7 @@ export default function Index() {
               <div className="bg-gray-900/80 rounded-xl p-4 md:p-6 lg:p-8 border border-gray-700/50 backdrop-blur-sm">
                 <div className="flex flex-col md:flex-row items-start space-y-4 md:space-y-0 md:space-x-4">
                   <div className="flex-shrink-0 mx-auto md:mx-0">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-800 rounded-full flex items-center justify-center border border-gray-600">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-800 rounded-full hidden md:flex items-center justify-center border border-gray-600">
                       <span className="material-icons text-gray-300 text-2xl md:text-3xl lg:text-4xl">info</span>
                     </div>
                   </div>
@@ -1222,8 +1222,8 @@ export default function Index() {
                     
                     <div className="space-y-3 md:space-y-4 text-gray-300 leading-relaxed">
                       <p className="text-sm md:text-base">
-                        Actuellement, MovieStream fonctionne avec des <span className="text-teal-400 font-medium">services gratuits</span> que 
-                        j'alterne en créant plusieurs comptes pour bénéficier des essais gratuits. Cette méthode me permet de 
+                        Actuellement, MovieStream fonctionne sur un <span className="text-teal-400 font-medium">service payant</span> qui propose un essai gratuit de 14 jours, pour des questions financières
+                        je bénéficie de plusieurs essai gratuit en alternant entre plusieurs comptes. Cette méthode, bien que peu éthique me permet de 
                         maintenir le site sans frais, mais limite considérablement le nombre de films disponibles.
                       </p>
                       
@@ -1234,8 +1234,8 @@ export default function Index() {
                             <h4 className="font-semibold text-teal-400 mb-2 text-sm md:text-base">Solution pour plus de contenu</h4>
                             <p className="text-sm md:text-base text-gray-300">
                               Si chaque utilisateur contribuait seulement <span className="text-white font-bold">3€</span>, 
-                              je pourrais financer un serveur dédié (≈ 80-90€/mois) et devenir complètement autonome. 
-                              Cela me permettrait d'ajouter <span className="text-white font-bold">plus de 500 films</span> 
+                              je pourrais investir dans un serveur dédié (≈ 80-90€/mois) et devenir complètement autonome. 
+                              Cela me permettrait d'ajouter <span className="text-white font-bold">plus de 500 films </span> 
                               sans dépendre de services externes !
                             </p>
                           </div>
