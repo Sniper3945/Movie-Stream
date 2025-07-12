@@ -1137,7 +1137,7 @@ export default function Index() {
             )}
 
             {/* Section À l'affiche */}
-            <section className="mb-12">
+            {/* <section className="mb-12">
               <div className="flex flex-col sm:flex-row items-start sm:items-center mb-6 space-y-2 sm:space-y-0 sm:space-x-4">
                 <h2 className="text-2xl font-semibold">
                   À l'affiche
@@ -1187,10 +1187,10 @@ export default function Index() {
                     </div>
                   </Link>
                 ))}
-              </div>
+              </div> */}
 
               {/* Sentinel pour charger plus de films */}
-              {hasMoreRegular && (
+              {/* {hasMoreRegular && (
                 <div ref={sentinelRegularRef} className="w-full py-8 flex justify-center">
                   {isLoadingRegular ? (
                     <div className="flex items-center space-x-2 text-gray-400">
@@ -1204,7 +1204,7 @@ export default function Index() {
                   )}
                 </div>
               )}
-            </section>
+            </section> */}
 
             {/* Section d'explication sur les limitations */}
             <section className="mb-12">
@@ -1497,4 +1497,5 @@ export default function Index() {
       </AnimatePresence>
     </div>
   );
-}
+};
+// met en commentaire toute la section a l'affiche pour l'instant

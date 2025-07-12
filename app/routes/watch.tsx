@@ -180,7 +180,7 @@ export default function Watch() {
       </header>
 
       {/* Debug Info Visible */}
-      {debugInfo && (
+      {/* {debugInfo && (
         <div className="container mx-auto px-4 md:px-8 py-4">
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4">
             <h3 className="text-lg font-bold mb-3 text-yellow-400">🔍 Debug Info (Mobile)</h3>
@@ -198,7 +198,7 @@ export default function Watch() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Video Player */}
       <div className="container mx-auto px-4 md:px-8 py-8">
