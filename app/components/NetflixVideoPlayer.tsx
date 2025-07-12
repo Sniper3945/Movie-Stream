@@ -767,9 +767,7 @@ export const NetflixVideoPlayer = ({
 
       // Forcer l'arrêt du loading après 3 secondes max
       const forceStopLoading = setTimeout(() => {
-        if (isLoading) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }, 3000);
 
       video.addEventListener('loadstart', handleLoadStart);
@@ -786,7 +784,7 @@ export const NetflixVideoPlayer = ({
         video.removeEventListener('error', handleError);
         video.removeEventListener('timeupdate', handleTimeUpdate);
       };
-    }, [src, isHLS, savedTime, onProgress, isLoading]);
+    }, [src, isHLS, savedTime, onProgress]); // Suppression de isLoading des dépendances
 
     return (
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
@@ -823,8 +821,8 @@ export const NetflixVideoPlayer = ({
           }}
         />
         
-        {/* Debug mobile visible à l'écran */}
-        {(isLoading || error) && (
+        {/* Debug mobile visible à l'écran - seulement en cas d'erreur maintenant */}
+        {error && (
           <div className="absolute top-2 left-2 right-2 z-50 bg-black bg-opacity-80 text-white p-2 rounded text-xs">
             <div className="flex justify-between items-center">
               <span className="text-yellow-400">📱 Debug Mobile</span>
@@ -1223,3 +1221,4 @@ export const NetflixVideoPlayer = ({
     </div>
   );
 };
+
