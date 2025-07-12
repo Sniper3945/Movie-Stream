@@ -158,61 +158,96 @@ export const NetflixVideoPlayer = ({
     setIsLoading(true);
 
     if (isMobile) {
-      // VERSION MOBILE ULTRA-SIMPLIFIÉE - player natif SEULEMENT
-      console.log('🎬 [Mobile] Chargement simple:', src);
+      // VERSION MOBILE QUI MARCHE - Player natif avec détection intelligente
+      console.log('🎬 [Mobile] Initialisation:', {
+        src: src.substring(src.lastIndexOf('/') + 1),
+        isHLSProp: isHLS,
+        urlType: src.includes('.m3u8') ? 'HLS' : src.includes('.mp4') ? 'MP4' : 'Unknown'
+      });
       
-      // Réinitialiser complètement la vidéo
+      // Réinitialiser la vidéo
       video.src = '';
-      video.load();
+      video.removeAttribute('src');
       
-      // Définir la source et laisser le navigateur gérer tout
-      setTimeout(() => {
-        video.src = src;
-        video.load();
-      }, 100);
+      // Définir la source directement - le navigateur mobile gère automatiquement
+      video.src = src;
       
-      // Event listeners minimalistes
+      // Attributs optimisés pour mobile
+      video.setAttribute('preload', 'metadata');
+      video.setAttribute('crossorigin', 'anonymous');
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      
+      // Event listeners simplifiés mais complets
       const handleCanPlay = () => {
-        console.log('🎬 [Mobile] canplay event');
+        console.log('🎬 [Mobile] canplay - Vidéo prête');
         setIsLoading(false);
       };
       
       const handleLoadedData = () => {
-        console.log('🎬 [Mobile] loadeddata event');
+        console.log('🎬 [Mobile] loadeddata - Données chargées');
         setIsLoading(false);
         if (savedTime > 0) {
           video.currentTime = savedTime;
         }
       };
       
-      const handleError = (e: Event) => {
-        console.error('🚨 [Mobile] error event:', e);
+      const handleLoadedMetadata = () => {
+        console.log('🎬 [Mobile] loadedmetadata - Métadonnées chargées');
         setIsLoading(false);
-        setError('Cette vidéo ne peut pas être lue sur votre appareil.');
+      };
+      
+      const handleError = (e: Event) => {
+        console.error('🚨 [Mobile] Erreur vidéo:', {
+          error: video.error,
+          errorCode: video.error?.code,
+          networkState: video.networkState,
+          readyState: video.readyState,
+          src: src.substring(src.lastIndexOf('/') + 1)
+        });
+        setIsLoading(false);
+        
+        // Message d'erreur adaptatif
+        if (src.includes('.m3u8')) {
+          setError('Stream HLS non disponible. Le lien a peut-être expiré.');
+        } else {
+          setError('Impossible de lire cette vidéo. Vérifiez votre connexion.');
+        }
       };
 
       const handleLoadStart = () => {
-        console.log('🎬 [Mobile] loadstart event');
+        console.log('🎬 [Mobile] loadstart - Début du chargement');
         setIsLoading(true);
       };
 
-      // Timeout simple
+      // Timeout adaptatif selon le type
+      const timeoutDuration = src.includes('.mp4') ? 30000 : 15000;
       const timeout = setTimeout(() => {
-        console.warn('🚨 [Mobile] Timeout de 30 secondes atteint');
+        console.warn(`🚨 [Mobile] Timeout (${timeoutDuration}ms)`);
         setIsLoading(false);
         setError('Le chargement prend trop de temps. Réessayez.');
-      }, 30000); // 30 secondes
+      }, timeoutDuration);
 
+      // Ajout des event listeners
       video.addEventListener('loadstart', handleLoadStart);
-      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('canplay', handleCanPlay);
       video.addEventListener('error', handleError);
+
+      // Démarrer le chargement
+      try {
+        video.load();
+      } catch (e) {
+        console.error('🚨 [Mobile] Erreur video.load():', e);
+      }
 
       return () => {
         clearTimeout(timeout);
         video.removeEventListener('loadstart', handleLoadStart);
-        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
         video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('canplay', handleCanPlay);
         video.removeEventListener('error', handleError);
       };
     } else {
@@ -592,7 +627,7 @@ export const NetflixVideoPlayer = ({
   const bufferedPercentage = duration > 0 ? (bufferedTime / duration) * 100 : 0;
   const volumePercentage = volume * 100;
 
-  // Si mobile, utiliser le player natif ULTRA-SIMPLE
+  // Si mobile, utiliser le player natif optimisé
   if (isMobile) {
     return (
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
@@ -602,8 +637,9 @@ export const NetflixVideoPlayer = ({
           poster={poster}
           controls
           playsInline
-          preload="none"
           webkit-playsinline="true"
+          preload="metadata"
+          crossOrigin="anonymous"
           onTimeUpdate={() => {
             const video = videoRef.current;
             if (video && onProgress && video.duration) {
@@ -622,9 +658,11 @@ export const NetflixVideoPlayer = ({
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-              <p className="text-white text-sm">Chargement...</p>
+              <p className="text-white text-sm">
+                {src.includes('.m3u8') ? 'Chargement du stream...' : 'Chargement de la vidéo...'}
+              </p>
               <p className="text-gray-400 text-xs mt-2">
-                Patientez quelques secondes
+                {src.includes('.m3u8') ? 'Stream HLS en cours' : 'Fichier vidéo en cours'}
               </p>
             </div>
           </div>
@@ -635,23 +673,28 @@ export const NetflixVideoPlayer = ({
             <div className="text-center text-white p-4">
               <h3 className="text-lg font-bold mb-2">Erreur</h3>
               <p className="text-gray-300 mb-4 text-sm">{error}</p>
-              <div className="text-xs text-gray-400 mb-4">
-                URL: {src.substring(src.lastIndexOf('/') + 1)}
+              <div className="text-xs text-gray-400 mb-4 font-mono">
+                Type: {src.includes('.m3u8') ? 'HLS Stream' : src.includes('.mp4') ? 'MP4 Direct' : 'Inconnu'}
+                <br />
+                Fichier: {src.substring(src.lastIndexOf('/') + 1)}
               </div>
               <div className="space-y-2">
                 <button 
                   onClick={() => {
-                    console.log('🔄 [Mobile] Retry clicked');
+                    console.log('🔄 [Mobile] Retry - Reset complet');
                     setError(null);
                     setIsLoading(true);
                     const video = videoRef.current;
                     if (video) {
+                      // Reset complet avec nouveau cycle
                       video.src = '';
+                      video.removeAttribute('src');
                       video.load();
+                      
                       setTimeout(() => {
                         video.src = src;
                         video.load();
-                      }, 500);
+                      }, 200);
                     }
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm mr-2"
