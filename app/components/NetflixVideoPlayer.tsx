@@ -710,6 +710,23 @@ export const NetflixVideoPlayer = ({
   if (isMobile) {
     return (
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+        {/* Debug info visible en permanence sur mobile */}
+        <div className="absolute top-2 left-2 z-50 bg-black bg-opacity-90 text-white p-3 rounded text-xs font-mono max-w-sm border border-gray-600">
+          <div className="text-yellow-400 font-bold mb-2">🔍 DEBUG MOBILE</div>
+          <div><span className="text-gray-400">Type:</span> <span className="text-green-400">{src.includes('.m3u8') ? 'HLS' : src.includes('.mp4') ? 'MP4' : 'Unknown'}</span></div>
+          <div><span className="text-gray-400">isHLS prop:</span> <span className={isHLS ? 'text-green-400' : 'text-red-400'}>{isHLS ? 'true' : 'false'}</span></div>
+          <div><span className="text-gray-400">Loading:</span> <span className={isLoading ? 'text-yellow-400' : 'text-green-400'}>{isLoading ? 'Oui' : 'Non'}</span></div>
+          <div><span className="text-gray-400">Error:</span> <span className={error ? 'text-red-400' : 'text-green-400'}>{error ? 'Oui' : 'Non'}</span></div>
+          <div className="mt-2 text-xs text-gray-400 break-all">
+            <span>URL:</span> <span className="text-blue-300">{src.substring(src.lastIndexOf('/') + 1)}</span>
+          </div>
+          {error && (
+            <div className="mt-2 text-xs text-red-300">
+              <span>Erreur:</span> {error.substring(0, 50)}...
+            </div>
+          )}
+        </div>
+        
         <video
           ref={videoRef}
           className="w-full h-full object-contain"
@@ -737,10 +754,10 @@ export const NetflixVideoPlayer = ({
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
               <p className="text-white text-sm">
-                {src.includes('.mp4') ? 'Chargement de la vidéo...' : 'Chargement du stream...'}
+                {src.includes('.mp4') ? 'Chargement de la vidéo MP4...' : 'Chargement du stream HLS...'}
               </p>
               <p className="text-gray-400 text-xs mt-2">
-                {src.includes('.mp4') ? 'Les vidéos peuvent prendre plus de temps' : 'Patientez quelques secondes'}
+                {src.includes('.mp4') ? 'Les vidéos directes peuvent prendre plus de temps' : 'Patientez quelques secondes'}
               </p>
             </div>
           </div>
@@ -751,9 +768,15 @@ export const NetflixVideoPlayer = ({
             <div className="text-center text-white p-4">
               <h3 className="text-lg font-bold mb-2">Erreur de lecture</h3>
               <p className="text-gray-300 mb-4 text-sm">{error}</p>
+              <div className="text-xs text-gray-400 mb-4 font-mono">
+                Type détecté: {src.includes('.mp4') ? 'MP4 Direct' : src.includes('.m3u8') ? 'HLS Stream' : 'Inconnu'}
+                <br />
+                URL: {src.substring(src.lastIndexOf('/') + 1)}
+              </div>
               <div className="space-y-2">
                 <button 
                   onClick={() => {
+                    console.log('🔄 [Mobile] Retry button clicked');
                     setError(null);
                     setIsLoading(true);
                     const video = videoRef.current;

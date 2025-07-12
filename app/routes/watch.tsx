@@ -23,11 +23,11 @@ export default function Watch() {
   const navigate = useNavigate();
   const { films, loading } = useFilms();
   const [currentFilm, setCurrentFilm] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   // Initialiser Google Analytics et suivre la vue de page
   useEffect(() => {
     initialize();
-    // On ne fait pas de trackPageView tout de suite car on n'a pas encore le titre du film
   }, []);
 
   useEffect(() => {
@@ -35,6 +35,26 @@ export default function Watch() {
       const film = films.find(f => f.id === id);
       if (film) {
         setCurrentFilm(film);
+        
+        // Debug: analyser le type de film et URL
+        const isHLSStream = film.videoUrl.includes('.m3u8') || film.videoUrl.includes('playlist');
+        const isDirectVideo = film.videoUrl.includes('.mp4') || film.videoUrl.includes('.mkv') || 
+                             film.videoUrl.includes('.avi') || film.videoUrl.includes('.webm');
+        const isEphemere = film.ephemere;
+        
+        const debug = {
+          filmTitle: film.title,
+          videoUrl: film.videoUrl,
+          isEphemere: isEphemere,
+          isHLSStream: isHLSStream,
+          isDirectVideo: isDirectVideo,
+          urlExtension: film.videoUrl.substring(film.videoUrl.lastIndexOf('.')),
+          detectedType: isHLSStream ? 'HLS Stream' : isDirectVideo ? 'Direct Video' : 'Unknown',
+          shouldUseHLS: isEphemere && isHLSStream
+        };
+        
+        setDebugInfo(debug);
+        console.log('🎬 [Watch] Film analysis:', debug);
         
         // Mettre à jour le titre de la page dynamiquement
         document.title = `${film.title} - MovieStream`;
@@ -47,7 +67,6 @@ export default function Watch() {
         
         // Suivre la vue du film avec son titre
         trackFilmView(film.title);
-        // Envoyer la page view avec un titre descriptif incluant le nom du film
         trackPageView(`/watch/${id}`, `Film: ${film.title}`);
       } else {
         navigate('/');
@@ -83,7 +102,7 @@ export default function Watch() {
   return (
     <div className="min-h-screen bg-[#0D0D0D] text-white">
       {/* Header */}
-      <header className="bg-[#0D0D0D] py-4  md:px-8 sticky top-0 z-50 border-b border-gray-700">
+      <header className="bg-[#0D0D0D] py-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
         <div className="container mx-auto flex items-center justify-between">
           <button
             onClick={() => navigate(-1)}
@@ -94,12 +113,34 @@ export default function Watch() {
           </button>
           <button
             onClick={() => navigate('/')}
-            ><span className="text-xl md:text-2xl font-bold select-none">
+          >
+            <span className="text-xl md:text-2xl font-bold select-none">
               Movie<span className="font-normal">Stream</span>
             </span>
           </button>
         </div>
       </header>
+
+      {/* Debug Info Visible */}
+      {debugInfo && (
+        <div className="container mx-auto px-4 md:px-8 py-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 mb-4">
+            <h3 className="text-lg font-bold mb-3 text-yellow-400">🔍 Debug Info (Mobile)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm font-mono">
+              <div><span className="text-gray-400">Film:</span> <span className="text-white">{debugInfo.filmTitle}</span></div>
+              <div><span className="text-gray-400">Type:</span> <span className="text-green-400">{debugInfo.detectedType}</span></div>
+              <div><span className="text-gray-400">Éphémère:</span> <span className={debugInfo.isEphemere ? 'text-red-400' : 'text-gray-400'}>{debugInfo.isEphemere ? 'Oui' : 'Non'}</span></div>
+              <div><span className="text-gray-400">HLS Stream:</span> <span className={debugInfo.isHLSStream ? 'text-green-400' : 'text-gray-400'}>{debugInfo.isHLSStream ? 'Oui' : 'Non'}</span></div>
+              <div><span className="text-gray-400">Vidéo Directe:</span> <span className={debugInfo.isDirectVideo ? 'text-green-400' : 'text-gray-400'}>{debugInfo.isDirectVideo ? 'Oui' : 'Non'}</span></div>
+              <div><span className="text-gray-400">Extension:</span> <span className="text-blue-400">{debugInfo.urlExtension}</span></div>
+              <div><span className="text-gray-400">Use HLS.js:</span> <span className={debugInfo.shouldUseHLS ? 'text-green-400' : 'text-orange-400'}>{debugInfo.shouldUseHLS ? 'Oui' : 'Non'}</span></div>
+            </div>
+            <div className="mt-3 text-xs text-gray-400">
+              <span className="text-gray-400">URL:</span> <span className="text-blue-300 break-all">{debugInfo.videoUrl}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Video Player */}
       <div className="container mx-auto px-4 md:px-8 py-8">
@@ -108,7 +149,7 @@ export default function Watch() {
             src={currentFilm.videoUrl}
             poster={currentFilm.cover}
             title={currentFilm.title}
-            isHLS={currentFilm.ephemere && currentFilm.videoUrl?.endsWith('.m3u8')}
+            isHLS={currentFilm.ephemere && currentFilm.videoUrl?.includes('.m3u8')}
             onProgress={handleProgress}
             savedTime={getSavedTime()}
           />
