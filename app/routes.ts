@@ -6,6 +6,7 @@ export default [
   route("admin/auth", "routes/admin.auth.tsx"),
   route("admin", "routes/admin.tsx"),
   route("admin/ajout", "routes/admin.ajout.tsx"),
+  route("admin/ephemere", "routes/admin.ephemere.tsx"),
   route("admin/migration", "routes/admin.migration.tsx"),
   route("admin/utilisateurs", "routes/admin.utilisateurs.tsx"),
   route("admin/gestion", "routes/admin.gestion.tsx"),

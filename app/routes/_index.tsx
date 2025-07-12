@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router";
 import { useFilms } from "../contexts/FilmContext";
 import { trackFilmClick, initialize, trackPageView } from "../utils/analytics";
@@ -9,6 +9,10 @@ import { LazyImage } from "../components/LazyImage";
 import { motion, AnimatePresence } from "framer-motion";
 import { SparklesIcon, type SparklesIconHandle } from "../components/SparklesIcon";
 import { VERSION_INFO } from "../utils/version";
+import { useImageCache } from "../hooks/useImageCache";
+import { useGlobalLoader } from "../hooks/useGlobalLoader";
+import { WelcomePopup } from "../components/WelcomePopup";
+import { useWelcomePopup } from "../hooks/useWelcomePopup";
 
 export function meta() {
   return [
@@ -385,6 +389,9 @@ const FilmIdeaSection = ({ onClose }: { onClose?: () => void }) => {
 
 export default function Index() {
   const { films, loading, error } = useFilms();
+  const { preloadImages } = useImageCache();
+  const { showLoader, updateProgress, hideLoader } = useGlobalLoader();
+  const { showWelcomePopup, closeWelcomePopup } = useWelcomePopup(); // Plus de isLoading
   const [searchQuery, setSearchQuery] = useState("");
   const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -392,6 +399,32 @@ export default function Index() {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showFilmIdeaPopup, setShowFilmIdeaPopup] = useState(false);
+  const [showFilmIdeaTooltip, setShowFilmIdeaTooltip] = useState(false);
+  const [hasSeenFilmIdeaFeature, setHasSeenFilmIdeaFeature] = useState(false);
+
+  // Vérifier si l'utilisateur a déjà vu la feature
+  useEffect(() => {
+    const hasSeenFeature = localStorage.getItem('hasSeenFilmIdeaFeature');
+    if (!hasSeenFeature) {
+      // Montrer le tooltip après 3 secondes
+      setTimeout(() => {
+        setShowFilmIdeaTooltip(true);
+      }, 3000);
+    } else {
+      setHasSeenFilmIdeaFeature(true);
+    }
+  }, []);
+
+  // Marquer la feature comme vue quand l'utilisateur ouvre le popup
+  const handleOpenFilmIdea = () => {
+    setShowFilmIdeaPopup(true);
+    setShowFilmIdeaTooltip(false);
+    
+    if (!hasSeenFilmIdeaFeature) {
+      localStorage.setItem('hasSeenFilmIdeaFeature', 'true');
+      setHasSeenFilmIdeaFeature(true);
+    }
+  };
 
   // Options de tri
   const sortOptions = [
@@ -694,6 +727,41 @@ export default function Index() {
     }
   };
 
+  // Préchargement intelligent basé sur le comportement utilisateur
+  useEffect(() => {
+    if (films.length > 0) {
+      // Précharger immédiatement les 10 premières images
+      const priorityImages = films.slice(0, 10).map(film => film.cover);
+      preloadImages(priorityImages);
+
+      // Précharger progressivement le reste avec délai
+      setTimeout(() => {
+        const remainingImages = films.slice(10, 30).map(film => film.cover);
+        preloadImages(remainingImages);
+      }, 2000);
+
+      // Précharger le reste en arrière-plan
+      setTimeout(() => {
+        if (films.length > 30) {
+          const backgroundImages = films.slice(30).map(film => film.cover);
+          preloadImages(backgroundImages);
+        }
+      }, 10000);
+    }
+  }, [films, preloadImages]);
+
+  // Préchargement au hover pour une navigation fluide
+  const handleFilmHover = useCallback((film: any) => {
+    // Précharger les images des films similaires/suivants
+    const currentIndex = films.findIndex(f => f.id === film.id);
+    if (currentIndex !== -1) {
+      const nextFilms = films.slice(currentIndex + 1, currentIndex + 4);
+      const nextImages = nextFilms.map(f => f.cover);
+      preloadImages(nextImages);
+    }
+  }, [films, preloadImages]);
+
+  // Supprimer la condition welcomeLoading qui bloquait tout
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0D0D0D] text-white flex items-center justify-center">
@@ -707,6 +775,12 @@ export default function Index() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      {/* Popup de bienvenue - s'affiche par-dessus sans bloquer */}
+      <WelcomePopup 
+        isOpen={showWelcomePopup} 
+        onClose={closeWelcomePopup} 
+      />
+
       {/* Header */}
       <header className="bg-[#0D0D0D] py-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between">
@@ -1071,20 +1145,6 @@ export default function Index() {
                     ({visibleRegularFilms.length}/{regularFilms.length})
                   </span>
                 </h2>
-                {/* Indicateur de progression */}
-                {totalRegularWaves > 1 && (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-blue-500 transition-all duration-300"
-                        style={{ width: `${regularProgress}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-gray-400">
-                      Vague {currentRegularWave}/{totalRegularWaves}
-                    </span>
-                  </div>
-                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6">
                 {visibleRegularFilms.map((film, index) => (
@@ -1144,6 +1204,62 @@ export default function Index() {
                   )}
                 </div>
               )}
+            </section>
+
+            {/* Section d'explication sur les limitations */}
+            <section className="mb-12">
+              <div className="bg-gray-900/80 rounded-xl p-4 md:p-6 lg:p-8 border border-gray-700/50 backdrop-blur-sm">
+                <div className="flex flex-col md:flex-row items-start space-y-4 md:space-y-0 md:space-x-4">
+                  <div className="flex-shrink-0 mx-auto md:mx-0">
+                    <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-800 rounded-full flex items-center justify-center border border-gray-600">
+                      <span className="material-icons text-gray-300 text-2xl md:text-3xl lg:text-4xl">info</span>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0 text-center md:text-left">
+                    <h3 className="text-lg md:text-xl lg:text-2xl font-bold text-white mb-3 md:mb-4">
+                      Pourquoi si peu de films pour le moment ?
+                    </h3>
+                    
+                    <div className="space-y-3 md:space-y-4 text-gray-300 leading-relaxed">
+                      <p className="text-sm md:text-base">
+                        Actuellement, MovieStream fonctionne avec des <span className="text-teal-400 font-medium">services gratuits</span> que 
+                        j'alterne en créant plusieurs comptes pour bénéficier des essais gratuits. Cette méthode me permet de 
+                        maintenir le site sans frais, mais limite considérablement le nombre de films disponibles.
+                      </p>
+                      
+                      <div className="bg-gray-800/50 rounded-lg p-3 md:p-4 border-l-4 border-teal-500">
+                        <div className="flex flex-col md:flex-row md:items-start space-y-2 md:space-y-0 md:space-x-3">
+                          <span className="material-icons text-teal-400 text-xl md:text-xl lg:text-2xl flex-shrink-0 mx-auto md:mx-0 md:mt-0.5">lightbulb</span>
+                          <div className="text-center md:text-left">
+                            <h4 className="font-semibold text-teal-400 mb-2 text-sm md:text-base">Solution pour plus de contenu</h4>
+                            <p className="text-sm md:text-base text-gray-300">
+                              Si chaque utilisateur contribuait seulement <span className="text-white font-bold">3€</span>, 
+                              je pourrais financer un serveur dédié (≈ 80-90€/mois) et devenir complètement autonome. 
+                              Cela me permettrait d'ajouter <span className="text-white font-bold">plus de 500 films</span> 
+                              sans dépendre de services externes !
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start space-y-2 sm:space-y-0 sm:space-x-4 pt-2">
+                        <div className="flex items-center text-xs md:text-sm text-gray-400">
+                          <span className="material-icons text-teal-500 mr-2 text-base md:text-lg">check_circle</span>
+                          Actuellement gratuit
+                        </div>
+                        <div className="flex items-center text-xs md:text-sm text-gray-400">
+                          <span className="material-icons text-gray-500 mr-2 text-base md:text-lg">cloud</span>
+                          Limité par les services tiers
+                        </div>
+                        <div className="flex items-center text-xs md:text-sm text-gray-400">
+                          <span className="material-icons text-gray-500 mr-2 text-base md:text-lg">trending_up</span>
+                          En cours d'amélioration
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </section>
           </>
         )}
@@ -1222,6 +1338,11 @@ export default function Index() {
           </section>
         )}
 
+        {/* Popup de bienvenue - doit être rendu en premier pour être au-dessus */}
+        <WelcomePopup 
+          isOpen={showWelcomePopup} 
+          onClose={closeWelcomePopup} 
+        />
       </main>
 
       {/* Footer */}
@@ -1233,18 +1354,119 @@ export default function Index() {
         </div>
       </footer>
 
-      {/* Bouton flottant pour idée de film */}
-      <motion.button
-        onClick={() => setShowFilmIdeaPopup(true)}
-        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-40 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 group"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <SparklesIcon 
-          size={20} 
-          className="text-white group-hover:animate-pulse md:!w-6 md:!h-6 md:translate-y-0.5" 
-        />
-      </motion.button>
+      {/* Bandeau d'introduction à la feature (première visite) */}
+      {!hasSeenFilmIdeaFeature && films.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 2 }}
+          className="hidden md:block fixed top-20 right-4 z-50 bg-gray-900 text-white rounded-lg shadow-xl border border-gray-600 overflow-hidden"
+          style={{ maxWidth: '320px' }}
+        >
+          <div className="flex items-center space-x-2 p-3 text-sm">
+            <SparklesIcon size={16} className="text-teal-400 flex-shrink-0" />
+            <span className="font-medium flex-1 min-w-0">💡 Nouveau ! Proposez vos idées</span>
+            <div className="flex items-center space-x-1 flex-shrink-0">
+              <button
+                onClick={handleOpenFilmIdea}
+                className="text-xs bg-teal-600 text-white px-2 py-1 rounded-full font-semibold hover:bg-teal-700 transition-colors"
+              >
+                Voir
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('hasSeenFilmIdeaFeature', 'true');
+                  setHasSeenFilmIdeaFeature(true);
+                }}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+              >
+                <span className="material-icons text-sm">close</span>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Bouton flottant amélioré pour idée de film */}
+      <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-40">
+        {/* Tooltip de découverte */}
+        <AnimatePresence>
+          {showFilmIdeaTooltip && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, x: 20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, x: 20 }}
+              className="absolute bottom-full right-0 mb-3 bg-gray-900 text-white p-3 rounded-lg shadow-xl border border-gray-600 max-w-xs"
+            >
+              <div className="flex items-center space-x-2">
+                <SparklesIcon size={16} className="text-teal-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold whitespace-nowrap">Idée de film ?</p>
+                  <p className="text-xs text-gray-300">Proposez vos suggestions !</p>
+                </div>
+                <button
+                  onClick={() => setShowFilmIdeaTooltip(false)}
+                  className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+                >
+                  <span className="material-icons text-sm">close</span>
+                </button>
+              </div>
+              {/* Flèche du tooltip */}
+              <div className="absolute top-full right-6 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900"></div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Bouton principal plus grand et plus visible */}
+        <motion.button
+          onClick={handleOpenFilmIdea}
+          className="relative w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-blue-500 via-blue-600 to-purple-600 hover:from-blue-600 hover:via-blue-700 hover:to-purple-700 rounded-full flex items-center justify-center shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 group overflow-hidden"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          animate={showFilmIdeaTooltip ? { 
+            boxShadow: ["0 0 0 0 rgba(59, 130, 246, 0.7)", "0 0 0 10px rgba(59, 130, 246, 0)", "0 0 0 0 rgba(59, 130, 246, 0.7)"]
+          } : {}}
+          transition={{ 
+            boxShadow: { duration: 2, repeat: Infinity }
+          }}
+        >
+          {/* Effet de brillance */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 group-hover:translate-x-full transition-transform duration-700 -translate-x-full"></div>
+          
+          {/* Icône principale */}
+          <SparklesIcon 
+            size={24} 
+            className="text-white group-hover:animate-pulse md:!w-7 md:!h-7 relative z-10" 
+          />
+          
+          {/* Badge de notification (pour les nouveaux utilisateurs) */}
+          {!hasSeenFilmIdeaFeature && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-xs font-bold">!</span>
+            </div>
+          )}
+          
+          {/* Texte sur hover (desktop seulement) */}
+          <div className="hidden md:block absolute -left-32 top-1/2 transform -translate-y-1/2 bg-gray-900 text-white px-3 py-1 rounded-lg text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+            Proposer un film
+          </div>
+        </motion.button>
+
+        {/* Bouton alternatif en cas de petit écran (version compacte avec texte) */}
+        <div className="md:hidden absolute bottom-full right-0 mb-2">
+          <motion.button
+            onClick={handleOpenFilmIdea}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: hasSeenFilmIdeaFeature ? 0 : 1 }}
+            className="bg-gray-900/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-600"
+          >
+            <div className="flex items-center space-x-1">
+              <SparklesIcon size={12} className="text-teal-400 flex-shrink-0" />
+              <span className="whitespace-nowrap">Idée de film</span>
+            </div>
+          </motion.button>
+        </div>
+      </div>
 
       {/* Popup pour idée de film */}
       <AnimatePresence>

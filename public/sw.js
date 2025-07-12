@@ -44,20 +44,43 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // NETWORK FIRST pour les images dynamiques /.netlify/functions/get-cover
+  // CACHE FIRST pour les covers (strategy optimisée pour UX)
   if (
     request.method === "GET" &&
     request.url.includes("/.netlify/functions/get-cover")
   ) {
     event.respondWith(
-      fetch(request, {
-        cache: "no-cache",
-        headers: {
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-      })
-        .then((response) => {
+      caches.match(request).then((cached) => {
+        if (cached) {
+          // Retourner immédiatement le cache, mais vérifier en arrière-plan
+          fetch(request, {
+            cache: "no-cache",
+            headers: {
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+            },
+          })
+            .then((response) => {
+              if (response.ok) {
+                const respClone = response.clone();
+                caches
+                  .open(CACHE_NAME)
+                  .then((cache) => cache.put(request, respClone));
+              }
+            })
+            .catch(() => {}); // Ignore les erreurs en arrière-plan
+
+          return cached;
+        }
+
+        // Si pas en cache, fetch et cache
+        return fetch(request, {
+          cache: "no-cache",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        }).then((response) => {
           if (response.ok) {
             const respClone = response.clone();
             caches
@@ -65,15 +88,8 @@ self.addEventListener("fetch", (event) => {
               .then((cache) => cache.put(request, respClone));
           }
           return response;
-        })
-        .catch((error) => {
-          return caches.match(request).then((cached) => {
-            if (cached) {
-              return cached;
-            }
-            throw error;
-          });
-        })
+        });
+      })
     );
     return;
   }
@@ -162,5 +178,24 @@ self.addEventListener("message", (event) => {
           });
         }
       });
+  }
+
+  // Nouveau: préchargement d'images
+  if (event.data && event.data.type === "PRELOAD_IMAGES") {
+    const { urls } = event.data;
+
+    caches.open(CACHE_NAME).then((cache) => {
+      urls.forEach((url, index) => {
+        setTimeout(() => {
+          fetch(url, { cache: "force-cache" })
+            .then((response) => {
+              if (response.ok) {
+                cache.put(url, response.clone());
+              }
+            })
+            .catch(() => {}); // Ignore les erreurs
+        }, index * 50); // Délai pour éviter de surcharger
+      });
+    });
   }
 });

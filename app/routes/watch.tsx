@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useFilms } from '../contexts/FilmContext';
-import Hls from "hls.js";
 import { initialize, trackPageView, trackFilmView } from '../utils/analytics';
+import { NetflixVideoPlayer } from '../components/NetflixVideoPlayer';
 
 // Fonction pour obtenir la couleur d'un genre - couleur grise uniforme
 const getGenreColor = (genreName: string) => {
@@ -23,9 +23,6 @@ export default function Watch() {
   const navigate = useNavigate();
   const { films, loading } = useFilms();
   const [currentFilm, setCurrentFilm] = useState<any>(null);
-  const [isVideoLoading, setIsVideoLoading] = useState(true);
-  const [videoError, setVideoError] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Initialiser Google Analytics et suivre la vue de page
   useEffect(() => {
@@ -58,103 +55,19 @@ export default function Watch() {
     }
   }, [films, id, navigate]);
 
-  useEffect(() => {
-    const hlsUrl = currentFilm?.ephemere ? currentFilm?.videoUrl : undefined;
-    if (
-      currentFilm &&
-      currentFilm.ephemere &&
-      hlsUrl &&
-      videoRef.current
-    ) {
-      let hls: Hls | null = null;
-
-      if (Hls.isSupported()) {
-        hls = new Hls();
-        hls.loadSource(hlsUrl);
-        hls.attachMedia(videoRef.current);
-        hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_, data) => {
-          // Supprime les anciens tracks
-          const video = videoRef.current;
-          if (!video) return;
-          // Retire les anciens tracks ajoutés dynamiquement
-          Array.from(video.querySelectorAll('track[data-hlsjs]')).forEach(t => t.remove());
-
-          data.subtitleTracks.forEach((track: any, i: number) => {
-            if (!track.url) return;
-            const trackEl = document.createElement('track');
-            trackEl.kind = 'subtitles';
-            trackEl.label = track.name || track.lang || `Sous-titres ${i+1}`;
-            trackEl.srclang = track.lang || `lang${i+1}`;
-            trackEl.src = track.url;
-            trackEl.default = i === 0;
-            trackEl.setAttribute('data-hlsjs', '1');
-            video.appendChild(trackEl);
-          });
-        });
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setIsVideoLoading(false);
-        });
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error("[HLS] Erreur HLS :", data);
-          setVideoError(true);
-          setIsVideoLoading(false);
-        });
-      } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-        videoRef.current.src = hlsUrl;
-        videoRef.current.addEventListener('loadedmetadata', () => {
-          setIsVideoLoading(false);
-        });
-        videoRef.current.addEventListener('error', (e) => {
-          console.error("[HLS] Erreur native lors du chargement de la vidéo.", e);
-          setVideoError(true);
-          setIsVideoLoading(false);
-        });
-      } else {
-        setVideoError(true);
-        setIsVideoLoading(false);
-      }
-
-      return () => {
-        if (hls) {
-          hls.destroy();
-        }
-      };
+  // Fonction pour sauvegarder la progression
+  const handleProgress = (currentTime: number, duration: number) => {
+    if (id && currentTime > 5) { // Sauvegarder seulement après 5 secondes
+      localStorage.setItem(`film-progress-${id}`, String(currentTime));
     }
-  }, [currentFilm, videoRef.current]);
+  };
 
-  // Récupère l'id du film (ex: via useParams ou props)
-  const filmId = id;
-
-  // Charger la position sauvegardée au montage
-  useEffect(() => {
-    const savedTime = localStorage.getItem(`film-progress-${filmId}`);
-    if (videoRef.current && savedTime) {
-      videoRef.current.currentTime = parseFloat(savedTime);
-    }
-  }, [filmId]);
-
-  // Sauvegarder la position régulièrement
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const saveProgress = () => {
-      localStorage.setItem(`film-progress-${filmId}`, String(video.currentTime));
-    };
-    video.addEventListener("timeupdate", saveProgress);
-    return () => {
-      video.removeEventListener("timeupdate", saveProgress);
-      // Sauvegarde finale à la sortie
-      saveProgress();
-    };
-  }, [filmId]);
-
-  // Sauvegarde la position de scroll de l'accueil juste avant de quitter pour aller sur /watch/*
-  useEffect(() => {
-    // Cette logique est mieux placée dans la page d'accueil (_index.tsx) au moment du clic sur un film.
-    // Mais si tu veux le faire ici, tu peux utiliser la navigation type "popstate" ou "beforeunload" pour détecter le retour.
-    // Cependant, la méthode la plus fiable en React est de sauvegarder le scroll AVANT de naviguer, dans le handler du clic sur le film (dans _index.tsx).
-    // Ici, on ne fait rien de plus.
-  }, []);
+  // Récupérer la position sauvegardée
+  const getSavedTime = () => {
+    if (!id) return 0;
+    const saved = localStorage.getItem(`film-progress-${id}`);
+    return saved ? parseFloat(saved) : 0;
+  };
 
   if (loading || !currentFilm) {
     return (
@@ -190,68 +103,15 @@ export default function Watch() {
 
       {/* Video Player */}
       <div className="container mx-auto px-4 md:px-8 py-8">
-        <div className="relative w-full max-w-4xl mx-auto aspect-video bg-black rounded-lg overflow-hidden shadow-2xl">
-          {isVideoLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-teal-500 mx-auto mb-4"></div>
-                <p>Chargement de la vidéo...</p>
-              </div>
-            </div>
-          )}
-          
-          {videoError ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
-              <div className="text-center">
-                <span className="material-icons text-6xl text-red-500 mb-4 block">error</span>
-                <h3 className="text-xl mb-2">Erreur de lecture</h3>
-                <p className="text-gray-400 mb-4">Impossible de charger la vidéo</p>
-                <button 
-                  onClick={() => {
-                    setVideoError(false);
-                    setIsVideoLoading(true);
-                  }}
-                  className="swiss-button px-6 py-2 rounded-lg"
-                >
-                  Réessayer
-                </button>
-              </div>
-            </div>
-          ) : (
-            // HLS (.m3u8) ou film éphémère
-            (currentFilm.ephemere && currentFilm.videoUrl && currentFilm.videoUrl.endsWith('.m3u8')) ? (
-              <video
-                ref={videoRef}
-                className="w-full h-full"
-                controls
-                autoPlay
-                onLoadStart={() => setIsVideoLoading(true)}
-                onError={() => {
-                  setVideoError(true);
-                  setIsVideoLoading(false);
-                }}
-                poster={currentFilm.cover}
-              />
-            ) : (
-              // Lien direct (mp4, 0x0.st, archive.org, etc)
-              <video
-                ref={videoRef}
-                className="w-full h-full"
-                controls
-                autoPlay
-                src={currentFilm.videoUrl}
-                onLoadStart={() => setIsVideoLoading(true)}
-                onCanPlay={() => setIsVideoLoading(false)}
-                onError={() => {
-                  setVideoError(true);
-                  setIsVideoLoading(false);
-                }}
-                poster={currentFilm.cover}
-              >
-                Votre navigateur ne supporte pas la lecture vidéo.
-              </video>
-            )
-          )}
+        <div className="max-w-6xl mx-auto">
+          <NetflixVideoPlayer
+            src={currentFilm.videoUrl}
+            poster={currentFilm.cover}
+            title={currentFilm.title}
+            isHLS={currentFilm.ephemere && currentFilm.videoUrl?.endsWith('.m3u8')}
+            onProgress={handleProgress}
+            savedTime={getSavedTime()}
+          />
         </div>
 
         {/* Film Info */}
@@ -340,5 +200,6 @@ export default function Watch() {
     </div>
   );
 };
+
 
 

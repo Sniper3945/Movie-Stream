@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { films as staticFilms } from '../data/films';
+import { useImageCache } from '../hooks/useImageCache';
 
 interface Film {
   id: string;
@@ -40,6 +41,7 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { preloadImages } = useImageCache();
 
   const fetchFilms = async () => {
     try {
@@ -63,6 +65,13 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
           if (data.films && data.films.length > 0) {
             setFilms(data.films);
             setError(null);
+            
+            // Précharger les images des premiers films
+            const topFilmsCovers = data.films
+              .slice(0, 20)
+              .map((film: Film) => film.cover);
+            preloadImages(topFilmsCovers);
+            
             return;
           }
         }
@@ -75,9 +84,21 @@ export const FilmProvider = ({ children }: FilmProviderProps) => {
       setFilms(staticFilms);
       setError(null);
       
+      // Précharger les images statiques aussi
+      const staticCovers = staticFilms
+        .slice(0, 20)
+        .map(film => film.cover);
+      preloadImages(staticCovers);
+      
     } catch (error: any) {
       setFilms(staticFilms);
       setError(null);
+      
+      // Précharger quand même en cas d'erreur
+      const staticCovers = staticFilms
+        .slice(0, 20)
+        .map(film => film.cover);
+      preloadImages(staticCovers);
     } finally {
       setLoading(false);
     }
