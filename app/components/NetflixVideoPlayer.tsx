@@ -46,8 +46,6 @@ export const NetflixVideoPlayer = ({
   const [isHovering, setIsHovering] = useState(false);
   const [lastMouseMove, setLastMouseMove] = useState(Date.now());
   const [isMobile, setIsMobile] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
-  const [showDebug, setShowDebug] = useState(false);
   
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -57,12 +55,11 @@ export const NetflixVideoPlayer = ({
   // Détection mobile
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+      const isMobileDevice = window.innerWidth <= 768 || 'ontouchstart' in window;
+      setIsMobile(isMobileDevice);
     };
     
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Gestion intelligente de l'auto-hide des contrôles
@@ -160,99 +157,164 @@ export const NetflixVideoPlayer = ({
     setError(null);
     setIsLoading(true);
 
-    // Nettoyage HLS précédent
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-
-    if (isHLS && src.includes('.m3u8')) {
-      // Configuration HLS optimisée
-      if (Hls.isSupported()) {
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-          backBufferLength: 90,
-          maxBufferLength: 30,
-          maxBufferSize: 60 * 1000 * 1000,
-          maxBufferHole: 0.5,
-          highBufferWatchdogPeriod: 2,
-          nudgeOffset: 0.1,
-          nudgeMaxRetry: 3,
-          maxMaxBufferLength: 600,
-          liveSyncDurationCount: 3,
-          liveMaxLatencyDurationCount: 10,
-        });
-        
-        hlsRef.current = hls;
-        hls.loadSource(src);
-        hls.attachMedia(video);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          setIsLoading(false);
-          console.log('🎬 [NetflixPlayer] HLS manifest chargé');
-        });
-        
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          console.error('🚨 [NetflixPlayer] Erreur HLS:', data);
-          if (data.fatal) {
-            switch (data.type) {
-              case Hls.ErrorTypes.NETWORK_ERROR:
-                setError('Erreur réseau - Vérifiez votre connexion');
-                break;
-              case Hls.ErrorTypes.MEDIA_ERROR:
-                setError('Erreur de lecture vidéo');
-                break;
-              default:
-                setError('Erreur de lecture HLS');
-                break;
-            }
-            setIsLoading(false);
-          }
-        });
-
-        // Optimisations HLS pour une meilleure expérience
-        hls.on(Hls.Events.BUFFER_APPENDING, () => setIsBuffering(false));
-        hls.on(Hls.Events.BUFFER_CREATED, () => setIsBuffering(false));
-        // hls.on(Hls.Events.BUFFER_FLUSHING, () => setIsBuffering(true));
-        hls.on(Hls.Events.BUFFER_FLUSHING, () => setIsBuffering(true));
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari natif
+    if (isMobile) {
+      // Configuration mobile SIMPLE - player natif avec HLS
+      const isHLSStream = src.includes('.m3u8') || src.includes('playlist');
+      
+      if (isHLSStream) {
+        // Forcer l'essai pour tous les appareils détectés comme mobile
         video.src = src;
-        video.addEventListener('canplay', () => setIsLoading(false));
-        video.addEventListener('error', () => {
-          setError('Erreur de lecture vidéo');
-          setIsLoading(false);
-        });
+        
+        try {
+          video.load();
+        } catch (e) {
+          console.error('Erreur lors de video.load():', e);
+        }
       } else {
-        setError('Format HLS non supporté par ce navigateur');
-        setIsLoading(false);
+        video.src = src;
       }
-    } else {
-      // Vidéo directe
-      video.src = src;
-      video.addEventListener('canplay', () => setIsLoading(false));
-      video.addEventListener('error', () => {
-        setError('Impossible de charger cette vidéo');
+      
+      // Événements simplifiés pour mobile
+      const handleCanPlay = () => setIsLoading(false);
+      const handleLoadedData = () => {
         setIsLoading(false);
-      });
-    }
+        if (savedTime > 0) {
+          video.currentTime = savedTime;
+        }
+      };
+      const handleError = () => {
+        setIsLoading(false);
+        setError('Impossible de charger cette vidéo. Le lien peut avoir expiré.');
+      };
 
-    // Position sauvegardée
-    if (savedTime > 0) {
-      video.currentTime = savedTime;
-    }
+      // Timeout de sécurité
+      const loadingTimeout = setTimeout(() => {
+        setIsLoading(false);
+        setError('Le chargement prend trop de temps. Réessayez.');
+      }, 15000);
 
-    return () => {
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('error', handleError);
+
+      return () => {
+        clearTimeout(loadingTimeout);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('error', handleError);
+      };
+    } else {
+      // Configuration desktop avec HLS.js (inchangée)
+      const isHLSStream = isHLS || src.includes('.m3u8') || src.includes('playlist.m3u8');
+      
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
       }
-    };
-  }, [src, isHLS, savedTime]);
 
-  // Event listeners optimisés
+      if (isHLSStream) {
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false, // Désactivé pour les streams éphémères
+            backBufferLength: 90,
+            maxBufferLength: 30,
+            maxBufferSize: 60 * 1000 * 1000,
+            maxBufferHole: 0.5,
+            highBufferWatchdogPeriod: 2,
+            nudgeOffset: 0.1,
+            nudgeMaxRetry: 3,
+            maxMaxBufferLength: 600,
+            liveSyncDurationCount: 3,
+            liveMaxLatencyDurationCount: 10,
+            // Optimisations pour les CDN éphémères
+            xhrSetup: (xhr, url) => {
+              xhr.withCredentials = false;
+              xhr.timeout = 10000; // 10s timeout
+            },
+            fetchSetup: (context, initParams) => {
+              initParams.credentials = 'omit';
+              return new Request(context.url, initParams);
+            }
+          });
+          
+          hlsRef.current = hls;
+          hls.loadSource(src);
+          hls.attachMedia(video);
+          
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            setIsLoading(false);
+          });
+          
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error('🚨 [Desktop] Erreur HLS:', data);
+            if (data.fatal) {
+              switch (data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  setError('Erreur réseau - Le lien du film a peut-être expiré');
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  setError('Erreur de lecture vidéo - Format non supporté');
+                  break;
+                default:
+                  setError('Erreur de lecture du stream');
+                  break;
+              }
+              setIsLoading(false);
+            }
+          });
+
+          // Optimisations HLS
+          hls.on(Hls.Events.BUFFER_APPENDING, () => setIsBuffering(false));
+          hls.on(Hls.Events.BUFFER_CREATED, () => setIsBuffering(false));
+          hls.on(Hls.Events.BUFFER_FLUSHING, () => setIsBuffering(true));
+          
+          // Gestion des fragments pour les streams éphémères
+          hls.on(Hls.Events.FRAG_LOADED, (event, data) => {
+            console.log('🎬 [Desktop] Fragment chargé:', data.frag.url);
+          });
+          
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          // Safari natif
+          console.log('🎬 [Desktop] Safari HLS natif');
+          video.src = src;
+          video.addEventListener('canplay', () => setIsLoading(false));
+          video.addEventListener('error', () => {
+            setError('Erreur de lecture vidéo Safari');
+            setIsLoading(false);
+          });
+        } else {
+          setError('Format HLS non supporté par ce navigateur');
+          setIsLoading(false);
+        }
+      } else {
+        // Vidéo directe
+        video.src = src;
+        video.addEventListener('canplay', () => setIsLoading(false));
+        video.addEventListener('error', () => {
+          setError('Impossible de charger cette vidéo');
+          setIsLoading(false);
+        });
+      }
+
+      // Position sauvegardée pour desktop
+      if (savedTime > 0) {
+        video.currentTime = savedTime;
+      }
+
+      return () => {
+        if (hlsRef.current) {
+          hlsRef.current.destroy();
+          hlsRef.current = null;
+        }
+      };
+    }
+  }, [src, isHLS, savedTime, isMobile]);
+
+  // Event listeners optimisés (desktop uniquement)
   useEffect(() => {
+    if (isMobile) return; // Pas d'event listeners custom pour mobile
+
     const video = videoRef.current;
     if (!video) return;
 
@@ -319,33 +381,16 @@ export const NetflixVideoPlayer = ({
       video.removeEventListener('loadstart', handleLoadStart);
       video.removeEventListener('loadeddata', handleLoadedData);
     };
-  }, [onProgress]);
+  }, [onProgress, isMobile]);
 
-  // Gestion du fullscreen avec détection des événements webkit
+  // Gestion du fullscreen
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const isFullscreenNow = !!(
-        document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement ||
-        (document as any).msFullscreenElement
-      );
-      setIsFullscreen(isFullscreenNow);
-      console.log('🔄 Fullscreen changed:', isFullscreenNow);
+      setIsFullscreen(!!document.fullscreenElement);
     };
 
-    // Événements de changement de fullscreen pour tous les navigateurs
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('msfullscreenchange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
-    };
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   // Nettoyage des timeouts
@@ -503,174 +548,16 @@ export const NetflixVideoPlayer = ({
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
-    const video = videoRef.current;
-    
-    if (!container || !video) {
-      const msg = '❌ Container ou video manquant';
-      console.error(msg);
-      setDebugInfo(msg);
-      setShowDebug(true);
-      return;
-    }
-
-    const msg1 = `🎯 Toggle fullscreen - Mobile: ${isMobile}, Current: ${isFullscreen}`;
-    console.log(msg1);
-    setDebugInfo(msg1);
-    setShowDebug(true);
+    if (!container) return;
 
     try {
       if (isFullscreen) {
-        // Sortir du fullscreen
-        const msg2 = '📤 Sortie du fullscreen...';
-        console.log(msg2);
-        setDebugInfo(prev => prev + '\n' + msg2);
-        
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          await (document as any).webkitExitFullscreen();
-        } else if ((document as any).mozCancelFullScreen) {
-          await (document as any).mozCancelFullScreen();
-        } else if ((document as any).msExitFullscreen) {
-          await (document as any).msExitFullscreen();
-        }
+        await document.exitFullscreen();
       } else {
-        // Entrer en fullscreen
-        const msg3 = '📥 Entrée en fullscreen...';
-        console.log(msg3);
-        setDebugInfo(prev => prev + '\n' + msg3);
-        
-        if (isMobile) {
-          // Sur mobile, priorité au fullscreen vidéo natif
-          const msg4 = '📱 Tentative fullscreen vidéo natif mobile...';
-          console.log(msg4);
-          setDebugInfo(prev => prev + '\n' + msg4);
-          
-          // Diagnostic des méthodes disponibles
-          const diagnosticMsg = `🔍 Méthodes disponibles:
-- video.webkitEnterFullscreen: ${!!(video as any).webkitEnterFullscreen}
-- video.requestFullscreen: ${!!(video as any).requestFullscreen}
-- container.webkitRequestFullscreen: ${!!(container as any).webkitRequestFullscreen}
-- User Agent: ${navigator.userAgent.substring(0, 50)}...`;
-          
-          setDebugInfo(prev => prev + '\n' + diagnosticMsg);
-          
-          // 1. Essayer le fullscreen vidéo natif iOS
-          if ((video as any).webkitEnterFullscreen) {
-            const msg5 = '🍎 webkitEnterFullscreen détecté - tentative...';
-            console.log(msg5);
-            setDebugInfo(prev => prev + '\n' + msg5);
-            
-            try {
-              // Vérifier si la vidéo est prête
-              if (video.readyState < 2) {
-                const msgWait = '⏳ Attente que la vidéo soit prête...';
-                setDebugInfo(prev => prev + '\n' + msgWait);
-                await new Promise(resolve => {
-                  const checkReady = () => {
-                    if (video.readyState >= 2) {
-                      resolve(true);
-                    } else {
-                      setTimeout(checkReady, 100);
-                    }
-                  };
-                  checkReady();
-                });
-              }
-              
-              // Forcer la lecture si pas déjà en cours
-              if (video.paused) {
-                const msgPlay = '▶️ Démarrage de la lecture...';
-                setDebugInfo(prev => prev + '\n' + msgPlay);
-                await video.play();
-              }
-              
-              // Petit délai pour s'assurer que tout est prêt
-              await new Promise(resolve => setTimeout(resolve, 200));
-              
-              (video as any).webkitEnterFullscreen();
-              const msgSuccess = '✅ webkitEnterFullscreen appelé avec succès';
-              console.log(msgSuccess);
-              setDebugInfo(prev => prev + '\n' + msgSuccess);
-              
-              // Masquer le debug après succès
-              setTimeout(() => setShowDebug(false), 3000);
-              return;
-            } catch (error) {
-              const msgError = `⚠️ webkitEnterFullscreen échoué: ${error}`;
-              console.warn(msgError);
-              setDebugInfo(prev => prev + '\n' + msgError);
-            }
-          } else {
-            const msgNoWebkit = '❌ webkitEnterFullscreen non disponible';
-            setDebugInfo(prev => prev + '\n' + msgNoWebkit);
-          }
-          
-          // 2. Essayer le fullscreen vidéo standard
-          if ((video as any).requestFullscreen) {
-            const msg6 = '📺 requestFullscreen vidéo détecté - tentative...';
-            console.log(msg6);
-            setDebugInfo(prev => prev + '\n' + msg6);
-            try {
-              await (video as any).requestFullscreen();
-              const msgSuccess2 = '✅ requestFullscreen vidéo réussi';
-              console.log(msgSuccess2);
-              setDebugInfo(prev => prev + '\n' + msgSuccess2);
-              setTimeout(() => setShowDebug(false), 3000);
-              return;
-            } catch (error) {
-              const msgError2 = `⚠️ requestFullscreen vidéo échoué: ${error}`;
-              console.warn(msgError2);
-              setDebugInfo(prev => prev + '\n' + msgError2);
-            }
-          }
-        }
-        
-        // Fallback : fullscreen du container
-        const msg7 = '🔄 Fallback container fullscreen...';
-        console.log(msg7);
-        setDebugInfo(prev => prev + '\n' + msg7);
-        
-        if (container.requestFullscreen) {
-          await container.requestFullscreen();
-          const msgSuccess3 = '✅ Container requestFullscreen réussi';
-          console.log(msgSuccess3);
-          setDebugInfo(prev => prev + '\n' + msgSuccess3);
-        } else if ((container as any).webkitRequestFullscreen) {
-          await (container as any).webkitRequestFullscreen();
-          const msgSuccess4 = '✅ Container webkitRequestFullscreen réussi';
-          console.log(msgSuccess4);
-          setDebugInfo(prev => prev + '\n' + msgSuccess4);
-        } else if ((container as any).mozRequestFullScreen) {
-          await (container as any).mozRequestFullScreen();
-          const msgSuccess5 = '✅ Container mozRequestFullScreen réussi';
-          console.log(msgSuccess5);
-          setDebugInfo(prev => prev + '\n' + msgSuccess5);
-        } else if ((container as any).msRequestFullscreen) {
-          await (container as any).msRequestFullscreen();
-          const msgSuccess6 = '✅ Container msRequestFullscreen réussi';
-          console.log(msgSuccess6);
-          setDebugInfo(prev => prev + '\n' + msgSuccess6);
-        } else {
-          const msgError3 = '❌ Aucune méthode de fullscreen disponible';
-          console.error(msgError3);
-          setDebugInfo(prev => prev + '\n' + msgError3);
-        }
+        await container.requestFullscreen();
       }
-      
-      // Masquer le debug après 5 secondes si tout va bien
-      setTimeout(() => setShowDebug(false), 5000);
-      
     } catch (error) {
-      const errorMsg = `💥 Erreur fullscreen: ${error}`;
-      console.error(errorMsg);
-      setDebugInfo(prev => prev + '\n' + errorMsg);
-      
-      // Afficher une notification à l'utilisateur
-      if (isMobile) {
-        const userMsg = '📱 Le plein écran n\'est pas disponible. Tournez votre téléphone en mode paysage.';
-        setDebugInfo(prev => prev + '\n' + userMsg);
-      }
+      console.error('Erreur fullscreen:', error);
     }
   };
 
@@ -699,93 +586,8 @@ export const NetflixVideoPlayer = ({
   const bufferedPercentage = duration > 0 ? (bufferedTime / duration) * 100 : 0;
   const volumePercentage = volume * 100;
 
-  // Si mobile, utiliser le player natif
+  // Si mobile, utiliser le player natif simple
   if (isMobile) {
-    // Initialisation simplifiée pour mobile
-    useEffect(() => {
-      const video = videoRef.current;
-      if (!video || !src) return;
-
-      setError(null);
-      setIsLoading(true);
-
-      // Pour mobile, gérer directement la source sans HLS.js
-      if (isHLS && src.includes('.m3u8')) {
-        // Safari mobile supporte nativement HLS
-        if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = src;
-        } else {
-          setError('Format HLS non supporté sur cet appareil');
-          setIsLoading(false);
-          return;
-        }
-      } else {
-        // Vidéo directe
-        video.src = src;
-      }
-
-      // Position sauvegardée
-      if (savedTime > 0) {
-        const setSavedTimeWhenReady = () => {
-          if (video.readyState >= 2) {
-            video.currentTime = savedTime;
-          } else {
-            video.addEventListener('loadeddata', () => {
-              video.currentTime = savedTime;
-            }, { once: true });
-          }
-        };
-        setSavedTimeWhenReady();
-      }
-
-      // Événements simplifiés pour mobile
-      const handleLoadStart = () => {
-        setIsLoading(true);
-        setError(null);
-      };
-
-      const handleCanPlay = () => {
-        setIsLoading(false);
-        setError(null);
-      };
-
-      const handleLoadedData = () => {
-        setIsLoading(false);
-        setError(null);
-      };
-
-      const handleError = () => {
-        setIsLoading(false);
-        setError('Impossible de charger cette vidéo sur mobile');
-      };
-
-      const handleTimeUpdate = () => {
-        if (onProgress && video.duration) {
-          onProgress(video.currentTime, video.duration);
-        }
-      };
-
-      // Forcer l'arrêt du loading après 3 secondes max
-      const forceStopLoading = setTimeout(() => {
-        setIsLoading(false);
-      }, 3000);
-
-      video.addEventListener('loadstart', handleLoadStart);
-      video.addEventListener('canplay', handleCanPlay);
-      video.addEventListener('loadeddata', handleLoadedData);
-      video.addEventListener('error', handleError);
-      video.addEventListener('timeupdate', handleTimeUpdate);
-
-      return () => {
-        clearTimeout(forceStopLoading);
-        video.removeEventListener('loadstart', handleLoadStart);
-        video.removeEventListener('canplay', handleCanPlay);
-        video.removeEventListener('loadeddata', handleLoadedData);
-        video.removeEventListener('error', handleError);
-        video.removeEventListener('timeupdate', handleTimeUpdate);
-      };
-    }, [src, isHLS, savedTime, onProgress]); // Suppression de isLoading des dépendances
-
     return (
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
         <video
@@ -794,77 +596,34 @@ export const NetflixVideoPlayer = ({
           poster={poster}
           controls
           playsInline
-          preload="metadata"
-          onLoadStart={() => {
-            setIsLoading(true);
-            setError(null);
-          }}
-          onCanPlay={() => {
-            setIsLoading(false);
-          }}
-          onLoadedData={() => {
-            setIsLoading(false);
-            const video = videoRef.current;
-            if (video && savedTime > 0) {
-              video.currentTime = savedTime;
-            }
-          }}
-          onError={() => {
-            setIsLoading(false);
-            setError('Erreur de lecture vidéo mobile');
-          }}
+          preload="auto"
+          crossOrigin="anonymous"
           onTimeUpdate={() => {
             const video = videoRef.current;
             if (video && onProgress && video.duration) {
               onProgress(video.currentTime, video.duration);
             }
           }}
+          onLoadedData={() => {
+            const video = videoRef.current;
+            if (video && savedTime > 0) {
+              video.currentTime = savedTime;
+            }
+          }}
         />
         
-        {/* Debug mobile visible à l'écran - seulement en cas d'erreur maintenant */}
-        {error && (
-          <div className="absolute top-2 left-2 right-2 z-50 bg-black bg-opacity-80 text-white p-2 rounded text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-yellow-400">📱 Debug Mobile</span>
-              <span className="text-gray-400">{new Date().toLocaleTimeString()}</span>
-            </div>
-            <div className="mt-1 space-y-1">
-              <div>🔗 Source: {src ? `${src.substring(0, 30)}...` : 'Aucune'}</div>
-              <div>📺 HLS: {isHLS ? 'Oui' : 'Non'}</div>
-              <div>📱 Mobile: {isMobile ? 'Oui' : 'Non'}</div>
-              <div>⏱️ SavedTime: {savedTime}s</div>
-              <div>🔄 Loading: {isLoading ? 'Oui' : 'Non'}</div>
-              <div>❌ Error: {error || 'Aucune'}</div>
-              {videoRef.current && (
-                <>
-                  <div>📊 ReadyState: {videoRef.current.readyState}</div>
-                  <div>🎵 CanPlayType: {videoRef.current.canPlayType('application/vnd.apple.mpegurl') || 'Non'}</div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Overlay de chargement simple pour mobile */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-              <p className="text-white text-sm">Chargement de {title}...</p>
-              <p className="text-gray-400 text-xs mt-2">
-                {isHLS ? 'Streaming HLS' : 'Vidéo directe'}
-              </p>
+              <p className="text-white text-sm">Chargement du stream...</p>
             </div>
           </div>
         )}
 
-        {/* Overlay d'erreur pour mobile */}
         {error && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-95">
             <div className="text-center text-white p-4">
-              <div className="w-12 h-12 mx-auto mb-4 bg-red-600 rounded-full flex items-center justify-center">
-                <span className="material-icons text-xl">error</span>
-              </div>
               <h3 className="text-lg font-bold mb-2">Erreur de lecture</h3>
               <p className="text-gray-300 mb-4 text-sm">{error}</p>
               <div className="space-y-2">
@@ -895,7 +654,6 @@ export const NetflixVideoPlayer = ({
     );
   }
 
-  // Player custom pour desktop uniquement
   return (
     <div 
       ref={containerRef}
@@ -1006,28 +764,12 @@ export const NetflixVideoPlayer = ({
         </div>
       )}
 
-      {/* Debug overlay pour mobile - visible à l'écran */}
-      {showDebug && isMobile && (
-        <div className="absolute top-4 left-4 right-4 z-50 bg-black bg-opacity-90 text-white p-3 rounded-lg text-xs font-mono max-h-60 overflow-y-auto">
-          <div className="flex justify-between items-start mb-2">
-            <span className="font-bold text-yellow-400">🔧 Debug Fullscreen</span>
-            <button 
-              onClick={() => setShowDebug(false)}
-              className="text-red-400 font-bold"
-            >
-              ✕
-            </button>
-          </div>
-          <pre className="whitespace-pre-wrap text-xs">{debugInfo}</pre>
-        </div>
-      )}
-
-      {/* Contrôles Netflix-style optimisés - Desktop uniquement */}
+      {/* Contrôles Netflix-style optimisés */}
       <div className={`netflix-controls absolute bottom-0 left-0 right-0 z-20 transition-all duration-300 ease-out ${
         showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
       }`}>
         
-        {/* Barre de progression avec preview */}
+        {/* Barre de progression avec preview - mobile optimisé et plus visible */}
         <div className="px-3">
           <div
             ref={progressRef}
@@ -1039,7 +781,7 @@ export const NetflixVideoPlayer = ({
             {/* Preview tooltip */}
             {showPreview && (
               <div 
-                className="absolute bottom-full mb-3 bg-black bg-opacity-95 text-white px-3 py-1.5 rounded-md text-xs font-semibold pointer-events-none z-40 shadow-lg"
+                className="absolute bottom-full mb-2 sm:mb-3 bg-black bg-opacity-95 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-semibold pointer-events-none z-40 shadow-lg"
                 style={{ 
                   left: `${(previewTime / duration) * 100}%`,
                   transform: 'translateX(-50%)'
@@ -1049,7 +791,7 @@ export const NetflixVideoPlayer = ({
               </div>
             )}
             
-            {/* Track */}
+            {/* Track plus visible sur mobile */}
             <div className="netflix-progress-track-compact">
               {/* Buffer */}
               <div 
@@ -1072,10 +814,10 @@ export const NetflixVideoPlayer = ({
           </div>
         </div>
 
-        {/* Contrôles desktop */}
-        <div className="flex items-center justify-between px-3 pb-3 space-x-2">
-          {/* Contrôles de gauche */}
-          <div className="flex items-center space-x-2">
+        {/* Contrôles compacts - mobile optimisé */}
+        <div className="flex items-center justify-between px-2 sm:px-3 sm:pb-3 space-x-1 sm:space-x-2">
+          {/* Contrôles de gauche - plus compacts */}
+          <div className="flex items-center space-x-1 sm:space-x-2">
             {/* Play/Pause */}
             <button
               onClick={(e) => {
@@ -1086,7 +828,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact"
               aria-label={isPlaying ? "Pause" : "Lecture"}
             >
-              <span className="material-icons text-xl">
+              <span className="material-icons text-lg sm:text-xl">
                 {isPlaying ? 'pause' : 'play_arrow'}
               </span>
             </button>
@@ -1099,10 +841,10 @@ export const NetflixVideoPlayer = ({
                 showSkipIndicator('backward');
                 showControlsTemporarily();
               }}
-              className="netflix-control-button-compact"
+              className="netflix-control-button-compact hidden xs:block"
               aria-label="Reculer de 10 secondes"
             >
-              <span className="material-icons text-lg">replay_10</span>
+              <span className="material-icons text-sm sm:text-lg">replay_10</span>
             </button>
 
             <button
@@ -1112,13 +854,13 @@ export const NetflixVideoPlayer = ({
                 showSkipIndicator('forward');
                 showControlsTemporarily();
               }}
-              className="netflix-control-button-compact"
+              className="netflix-control-button-compact hidden xs:block"
               aria-label="Avancer de 10 secondes"
             >
-              <span className="material-icons text-lg">forward_10</span>
+              <span className="material-icons text-sm sm:text-lg">forward_10</span>
             </button>
 
-            {/* Volume */}
+            {/* Volume - simplifié sur mobile */}
             <div className="flex items-center space-x-1 group/volume">
               <button
                 onClick={(e) => {
@@ -1126,55 +868,60 @@ export const NetflixVideoPlayer = ({
                   toggleMute();
                   showControlsTemporarily();
                 }}
-                onMouseEnter={() => setShowVolumeSlider(true)}
+                onMouseEnter={() => !isMobile && setShowVolumeSlider(true)}
                 className="netflix-control-button-compact"
                 aria-label={isMuted ? "Activer le son" : "Couper le son"}
               >
-                <span className="material-icons text-lg">
+                <span className="material-icons text-sm sm:text-lg">
                   {isMuted || volume === 0 ? 'volume_off' : 
                    volume < 0.5 ? 'volume_down' : 'volume_up'}
                 </span>
               </button>
               
-              {/* Slider de volume */}
-              <div 
-                className={`netflix-volume-slider-compact transition-all duration-200 ${
-                  showVolumeSlider ? 'opacity-100 w-16' : 'opacity-0 w-0'
-                }`}
-                ref={volumeRef}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleVolumeChange(e);
-                  showControlsTemporarily();
-                }}
-                onMouseLeave={() => setShowVolumeSlider(false)}
-              >
-                <div className="netflix-volume-track-compact">
-                  <div 
-                    className="netflix-volume-fill-compact"
-                    style={{ width: `${volumePercentage}%` }}
-                  />
+              {/* Slider de volume compact - masqué sur mobile */}
+              {!isMobile && (
+                <div 
+                  className={`netflix-volume-slider-compact transition-all duration-200 ${
+                    showVolumeSlider ? 'opacity-100 w-12 sm:w-16' : 'opacity-0 w-0'
+                  }`}
+                  ref={volumeRef}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleVolumeChange(e);
+                    showControlsTemporarily();
+                  }}
+                  onMouseLeave={() => setShowVolumeSlider(false)}
+                >
+                  <div className="netflix-volume-track-compact">
+                    <div 
+                      className="netflix-volume-fill-compact"
+                      style={{ width: `${volumePercentage}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Temps */}
-            <span className="text-white text-xs font-medium ml-2">
+            {/* Temps compact */}
+            <span className="text-white text-xs font-medium ml-1 sm:ml-2 hidden sm:block">
               {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+            <span className="text-white text-xs font-medium ml-1 block sm:hidden">
+              {formatTime(currentTime)}
             </span>
           </div>
 
           {/* Contrôles de droite */}
           <div className="flex items-center space-x-1">
             {/* Vitesse de lecture */}
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowSpeedMenu(!showSpeedMenu);
                   showControlsTemporarily();
                 }}
-                className="netflix-control-button-compact text-xs font-bold min-w-[2.5rem] h-8"
+                className="netflix-control-button-compact text-xs font-bold min-w-[2rem] sm:min-w-[2.5rem] h-6 sm:h-8"
                 aria-label="Vitesse de lecture"
               >
                 {playbackRate}x
@@ -1211,7 +958,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact"
               aria-label={isFullscreen ? "Quitter plein écran" : "Plein écran"}
             >
-              <span className="material-icons text-lg">
+              <span className="material-icons text-sm sm:text-lg">
                 {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
               </span>
             </button>
@@ -1221,4 +968,4 @@ export const NetflixVideoPlayer = ({
     </div>
   );
 };
-
+       
