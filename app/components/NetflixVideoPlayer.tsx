@@ -46,6 +46,8 @@ export const NetflixVideoPlayer = ({
   const [isHovering, setIsHovering] = useState(false);
   const [lastMouseMove, setLastMouseMove] = useState(Date.now());
   const [isMobile, setIsMobile] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [showDebug, setShowDebug] = useState(false);
   
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -319,14 +321,31 @@ export const NetflixVideoPlayer = ({
     };
   }, [onProgress]);
 
-  // Gestion du fullscreen
+  // Gestion du fullscreen avec détection des événements webkit
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isFullscreenNow = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(isFullscreenNow);
+      console.log('🔄 Fullscreen changed:', isFullscreenNow);
     };
 
+    // Événements de changement de fullscreen pour tous les navigateurs
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
   }, []);
 
   // Nettoyage des timeouts
@@ -484,38 +503,173 @@ export const NetflixVideoPlayer = ({
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
-    if (!container) return;
+    const video = videoRef.current;
+    
+    if (!container || !video) {
+      const msg = '❌ Container ou video manquant';
+      console.error(msg);
+      setDebugInfo(msg);
+      setShowDebug(true);
+      return;
+    }
+
+    const msg1 = `🎯 Toggle fullscreen - Mobile: ${isMobile}, Current: ${isFullscreen}`;
+    console.log(msg1);
+    setDebugInfo(msg1);
+    setShowDebug(true);
 
     try {
       if (isFullscreen) {
-        await document.exitFullscreen();
-      } else {
-        // Amélioration pour mobile : utiliser webkitRequestFullscreen pour iOS/Safari
-        if (container.requestFullscreen) {
-          await container.requestFullscreen();
-        } else if ((container as any).webkitRequestFullscreen) {
-          // Safari iOS
-          await (container as any).webkitRequestFullscreen();
-        } else if ((container as any).mozRequestFullScreen) {
-          // Firefox
-          await (container as any).mozRequestFullScreen();
-        } else if ((container as any).msRequestFullscreen) {
-          // IE/Edge
-          await (container as any).msRequestFullscreen();
+        // Sortir du fullscreen
+        const msg2 = '📤 Sortie du fullscreen...';
+        console.log(msg2);
+        setDebugInfo(prev => prev + '\n' + msg2);
+        
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
         }
-      }
-    } catch (error) {
-      console.error('Erreur fullscreen:', error);
-      // Fallback pour mobile : essayer le fullscreen sur l'élément vidéo
-      if (isMobile) {
-        const video = videoRef.current;
-        if (video && (video as any).webkitEnterFullscreen) {
-          try {
-            (video as any).webkitEnterFullscreen();
-          } catch (videoError) {
-            console.error('Erreur fallback fullscreen:', videoError);
+      } else {
+        // Entrer en fullscreen
+        const msg3 = '📥 Entrée en fullscreen...';
+        console.log(msg3);
+        setDebugInfo(prev => prev + '\n' + msg3);
+        
+        if (isMobile) {
+          // Sur mobile, priorité au fullscreen vidéo natif
+          const msg4 = '📱 Tentative fullscreen vidéo natif mobile...';
+          console.log(msg4);
+          setDebugInfo(prev => prev + '\n' + msg4);
+          
+          // Diagnostic des méthodes disponibles
+          const diagnosticMsg = `🔍 Méthodes disponibles:
+- video.webkitEnterFullscreen: ${!!(video as any).webkitEnterFullscreen}
+- video.requestFullscreen: ${!!(video as any).requestFullscreen}
+- container.webkitRequestFullscreen: ${!!(container as any).webkitRequestFullscreen}
+- User Agent: ${navigator.userAgent.substring(0, 50)}...`;
+          
+          setDebugInfo(prev => prev + '\n' + diagnosticMsg);
+          
+          // 1. Essayer le fullscreen vidéo natif iOS
+          if ((video as any).webkitEnterFullscreen) {
+            const msg5 = '🍎 webkitEnterFullscreen détecté - tentative...';
+            console.log(msg5);
+            setDebugInfo(prev => prev + '\n' + msg5);
+            
+            try {
+              // Vérifier si la vidéo est prête
+              if (video.readyState < 2) {
+                const msgWait = '⏳ Attente que la vidéo soit prête...';
+                setDebugInfo(prev => prev + '\n' + msgWait);
+                await new Promise(resolve => {
+                  const checkReady = () => {
+                    if (video.readyState >= 2) {
+                      resolve(true);
+                    } else {
+                      setTimeout(checkReady, 100);
+                    }
+                  };
+                  checkReady();
+                });
+              }
+              
+              // Forcer la lecture si pas déjà en cours
+              if (video.paused) {
+                const msgPlay = '▶️ Démarrage de la lecture...';
+                setDebugInfo(prev => prev + '\n' + msgPlay);
+                await video.play();
+              }
+              
+              // Petit délai pour s'assurer que tout est prêt
+              await new Promise(resolve => setTimeout(resolve, 200));
+              
+              (video as any).webkitEnterFullscreen();
+              const msgSuccess = '✅ webkitEnterFullscreen appelé avec succès';
+              console.log(msgSuccess);
+              setDebugInfo(prev => prev + '\n' + msgSuccess);
+              
+              // Masquer le debug après succès
+              setTimeout(() => setShowDebug(false), 3000);
+              return;
+            } catch (error) {
+              const msgError = `⚠️ webkitEnterFullscreen échoué: ${error}`;
+              console.warn(msgError);
+              setDebugInfo(prev => prev + '\n' + msgError);
+            }
+          } else {
+            const msgNoWebkit = '❌ webkitEnterFullscreen non disponible';
+            setDebugInfo(prev => prev + '\n' + msgNoWebkit);
+          }
+          
+          // 2. Essayer le fullscreen vidéo standard
+          if ((video as any).requestFullscreen) {
+            const msg6 = '📺 requestFullscreen vidéo détecté - tentative...';
+            console.log(msg6);
+            setDebugInfo(prev => prev + '\n' + msg6);
+            try {
+              await (video as any).requestFullscreen();
+              const msgSuccess2 = '✅ requestFullscreen vidéo réussi';
+              console.log(msgSuccess2);
+              setDebugInfo(prev => prev + '\n' + msgSuccess2);
+              setTimeout(() => setShowDebug(false), 3000);
+              return;
+            } catch (error) {
+              const msgError2 = `⚠️ requestFullscreen vidéo échoué: ${error}`;
+              console.warn(msgError2);
+              setDebugInfo(prev => prev + '\n' + msgError2);
+            }
           }
         }
+        
+        // Fallback : fullscreen du container
+        const msg7 = '🔄 Fallback container fullscreen...';
+        console.log(msg7);
+        setDebugInfo(prev => prev + '\n' + msg7);
+        
+        if (container.requestFullscreen) {
+          await container.requestFullscreen();
+          const msgSuccess3 = '✅ Container requestFullscreen réussi';
+          console.log(msgSuccess3);
+          setDebugInfo(prev => prev + '\n' + msgSuccess3);
+        } else if ((container as any).webkitRequestFullscreen) {
+          await (container as any).webkitRequestFullscreen();
+          const msgSuccess4 = '✅ Container webkitRequestFullscreen réussi';
+          console.log(msgSuccess4);
+          setDebugInfo(prev => prev + '\n' + msgSuccess4);
+        } else if ((container as any).mozRequestFullScreen) {
+          await (container as any).mozRequestFullScreen();
+          const msgSuccess5 = '✅ Container mozRequestFullScreen réussi';
+          console.log(msgSuccess5);
+          setDebugInfo(prev => prev + '\n' + msgSuccess5);
+        } else if ((container as any).msRequestFullscreen) {
+          await (container as any).msRequestFullscreen();
+          const msgSuccess6 = '✅ Container msRequestFullscreen réussi';
+          console.log(msgSuccess6);
+          setDebugInfo(prev => prev + '\n' + msgSuccess6);
+        } else {
+          const msgError3 = '❌ Aucune méthode de fullscreen disponible';
+          console.error(msgError3);
+          setDebugInfo(prev => prev + '\n' + msgError3);
+        }
+      }
+      
+      // Masquer le debug après 5 secondes si tout va bien
+      setTimeout(() => setShowDebug(false), 5000);
+      
+    } catch (error) {
+      const errorMsg = `💥 Erreur fullscreen: ${error}`;
+      console.error(errorMsg);
+      setDebugInfo(prev => prev + '\n' + errorMsg);
+      
+      // Afficher une notification à l'utilisateur
+      if (isMobile) {
+        const userMsg = '📱 Le plein écran n\'est pas disponible. Tournez votre téléphone en mode paysage.';
+        setDebugInfo(prev => prev + '\n' + userMsg);
       }
     }
   };
@@ -545,6 +699,64 @@ export const NetflixVideoPlayer = ({
   const bufferedPercentage = duration > 0 ? (bufferedTime / duration) * 100 : 0;
   const volumePercentage = volume * 100;
 
+  // Si mobile, utiliser le player natif
+  if (isMobile) {
+    return (
+      <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          poster={poster}
+          controls
+          playsInline
+          preload="metadata"
+          onTimeUpdate={() => {
+            const video = videoRef.current;
+            if (video && onProgress) {
+              onProgress(video.currentTime, video.duration);
+            }
+          }}
+          onLoadedData={() => {
+            const video = videoRef.current;
+            if (video && savedTime > 0) {
+              video.currentTime = savedTime;
+            }
+          }}
+        />
+        
+        {/* Overlay de chargement simple pour mobile */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-90">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+              <p className="text-white text-sm">Chargement de {title}...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Overlay d'erreur pour mobile */}
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-95">
+            <div className="text-center text-white p-4">
+              <div className="w-12 h-12 mx-auto mb-4 bg-red-600 rounded-full flex items-center justify-center">
+                <span className="material-icons text-xl">error</span>
+              </div>
+              <h3 className="text-lg font-bold mb-2">Erreur de lecture</h3>
+              <p className="text-gray-300 mb-4 text-sm">{error}</p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm"
+              >
+                Réessayer
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Player custom pour desktop uniquement
   return (
     <div 
       ref={containerRef}
@@ -655,12 +867,28 @@ export const NetflixVideoPlayer = ({
         </div>
       )}
 
-      {/* Contrôles Netflix-style optimisés */}
+      {/* Debug overlay pour mobile - visible à l'écran */}
+      {showDebug && isMobile && (
+        <div className="absolute top-4 left-4 right-4 z-50 bg-black bg-opacity-90 text-white p-3 rounded-lg text-xs font-mono max-h-60 overflow-y-auto">
+          <div className="flex justify-between items-start mb-2">
+            <span className="font-bold text-yellow-400">🔧 Debug Fullscreen</span>
+            <button 
+              onClick={() => setShowDebug(false)}
+              className="text-red-400 font-bold"
+            >
+              ✕
+            </button>
+          </div>
+          <pre className="whitespace-pre-wrap text-xs">{debugInfo}</pre>
+        </div>
+      )}
+
+      {/* Contrôles Netflix-style optimisés - Desktop uniquement */}
       <div className={`netflix-controls absolute bottom-0 left-0 right-0 z-20 transition-all duration-300 ease-out ${
         showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
       }`}>
         
-        {/* Barre de progression avec preview - mobile optimisé et plus visible */}
+        {/* Barre de progression avec preview */}
         <div className="px-3">
           <div
             ref={progressRef}
@@ -672,7 +900,7 @@ export const NetflixVideoPlayer = ({
             {/* Preview tooltip */}
             {showPreview && (
               <div 
-                className="absolute bottom-full mb-2 sm:mb-3 bg-black bg-opacity-95 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-md text-xs font-semibold pointer-events-none z-40 shadow-lg"
+                className="absolute bottom-full mb-3 bg-black bg-opacity-95 text-white px-3 py-1.5 rounded-md text-xs font-semibold pointer-events-none z-40 shadow-lg"
                 style={{ 
                   left: `${(previewTime / duration) * 100}%`,
                   transform: 'translateX(-50%)'
@@ -682,7 +910,7 @@ export const NetflixVideoPlayer = ({
               </div>
             )}
             
-            {/* Track plus visible sur mobile */}
+            {/* Track */}
             <div className="netflix-progress-track-compact">
               {/* Buffer */}
               <div 
@@ -705,10 +933,10 @@ export const NetflixVideoPlayer = ({
           </div>
         </div>
 
-        {/* Contrôles compacts - mobile optimisé */}
-        <div className="flex items-center justify-between px-2 sm:px-3 sm:pb-3 space-x-1 sm:space-x-2">
-          {/* Contrôles de gauche - plus compacts */}
-          <div className="flex items-center space-x-1 sm:space-x-2">
+        {/* Contrôles desktop */}
+        <div className="flex items-center justify-between px-3 pb-3 space-x-2">
+          {/* Contrôles de gauche */}
+          <div className="flex items-center space-x-2">
             {/* Play/Pause */}
             <button
               onClick={(e) => {
@@ -719,7 +947,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact"
               aria-label={isPlaying ? "Pause" : "Lecture"}
             >
-              <span className="material-icons text-xl sm:text-xl">
+              <span className="material-icons text-xl">
                 {isPlaying ? 'pause' : 'play_arrow'}
               </span>
             </button>
@@ -732,10 +960,10 @@ export const NetflixVideoPlayer = ({
                 showSkipIndicator('backward');
                 showControlsTemporarily();
               }}
-              className="netflix-control-button-compact hidden xs:block"
+              className="netflix-control-button-compact"
               aria-label="Reculer de 10 secondes"
             >
-              <span className="material-icons text-lg sm:text-lg">replay_10</span>
+              <span className="material-icons text-lg">replay_10</span>
             </button>
 
             <button
@@ -745,13 +973,13 @@ export const NetflixVideoPlayer = ({
                 showSkipIndicator('forward');
                 showControlsTemporarily();
               }}
-              className="netflix-control-button-compact hidden xs:block"
+              className="netflix-control-button-compact"
               aria-label="Avancer de 10 secondes"
             >
-              <span className="material-icons text-lg sm:text-lg">forward_10</span>
+              <span className="material-icons text-lg">forward_10</span>
             </button>
 
-            {/* Volume - simplifié sur mobile */}
+            {/* Volume */}
             <div className="flex items-center space-x-1 group/volume">
               <button
                 onClick={(e) => {
@@ -759,60 +987,55 @@ export const NetflixVideoPlayer = ({
                   toggleMute();
                   showControlsTemporarily();
                 }}
-                onMouseEnter={() => !isMobile && setShowVolumeSlider(true)}
+                onMouseEnter={() => setShowVolumeSlider(true)}
                 className="netflix-control-button-compact"
                 aria-label={isMuted ? "Activer le son" : "Couper le son"}
               >
-                <span className="material-icons text-lg sm:text-lg">
+                <span className="material-icons text-lg">
                   {isMuted || volume === 0 ? 'volume_off' : 
                    volume < 0.5 ? 'volume_down' : 'volume_up'}
                 </span>
               </button>
               
-              {/* Slider de volume compact - masqué sur mobile */}
-              {!isMobile && (
-                <div 
-                  className={`netflix-volume-slider-compact transition-all duration-200 ${
-                    showVolumeSlider ? 'opacity-100 w-12 sm:w-16' : 'opacity-0 w-0'
-                  }`}
-                  ref={volumeRef}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleVolumeChange(e);
-                    showControlsTemporarily();
-                  }}
-                  onMouseLeave={() => setShowVolumeSlider(false)}
-                >
-                  <div className="netflix-volume-track-compact">
-                    <div 
-                      className="netflix-volume-fill-compact"
-                      style={{ width: `${volumePercentage}%` }}
-                    />
-                  </div>
+              {/* Slider de volume */}
+              <div 
+                className={`netflix-volume-slider-compact transition-all duration-200 ${
+                  showVolumeSlider ? 'opacity-100 w-16' : 'opacity-0 w-0'
+                }`}
+                ref={volumeRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVolumeChange(e);
+                  showControlsTemporarily();
+                }}
+                onMouseLeave={() => setShowVolumeSlider(false)}
+              >
+                <div className="netflix-volume-track-compact">
+                  <div 
+                    className="netflix-volume-fill-compact"
+                    style={{ width: `${volumePercentage}%` }}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Temps compact */}
-            <span className="text-white text-xs font-medium ml-1 sm:ml-2 hidden sm:block">
+            {/* Temps */}
+            <span className="text-white text-xs font-medium ml-2">
               {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-            <span className="text-white text-xs font-medium ml-1 block sm:hidden">
-              {formatTime(currentTime)}
             </span>
           </div>
 
           {/* Contrôles de droite */}
           <div className="flex items-center space-x-1">
             {/* Vitesse de lecture */}
-            <div className="relative hidden sm:block">
+            <div className="relative">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowSpeedMenu(!showSpeedMenu);
                   showControlsTemporarily();
                 }}
-                className="netflix-control-button-compact text-xs font-bold min-w-[2rem] sm:min-w-[2.5rem] h-6 sm:h-8"
+                className="netflix-control-button-compact text-xs font-bold min-w-[2.5rem] h-8"
                 aria-label="Vitesse de lecture"
               >
                 {playbackRate}x
@@ -849,7 +1072,7 @@ export const NetflixVideoPlayer = ({
               className="netflix-control-button-compact"
               aria-label={isFullscreen ? "Quitter plein écran" : "Plein écran"}
             >
-              <span className="material-icons text-lg sm:text-lg">
+              <span className="material-icons text-lg">
                 {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
               </span>
             </button>
