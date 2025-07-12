@@ -24,6 +24,8 @@ export default function Watch() {
   const { films, loading } = useFilms();
   const [currentFilm, setCurrentFilm] = useState<any>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
+  // Ajouter un état d'erreur pour les films sans URL
+  const [error, setError] = useState<string | null>(null);
 
   // Initialiser Google Analytics et suivre la vue de page
   useEffect(() => {
@@ -35,6 +37,12 @@ export default function Watch() {
       const film = films.find(f => f.id === id);
       if (film) {
         setCurrentFilm(film);
+        
+        // Vérifier que videoUrl existe avant de faire les analyses
+        if (!film.videoUrl) {
+          setError('URL de la vidéo manquante');
+          return;
+        }
         
         // Debug: analyser le type de film et URL
         const isHLSStream = film.videoUrl.includes('.m3u8') || film.videoUrl.includes('playlist');
@@ -76,7 +84,7 @@ export default function Watch() {
 
   // Fonction pour sauvegarder la progression
   const handleProgress = (currentTime: number, duration: number) => {
-    if (id && currentTime > 5) { // Sauvegarder seulement après 5 secondes
+    if (id && currentTime > 5) {
       localStorage.setItem(`film-progress-${id}`, String(currentTime));
     }
   };
@@ -94,6 +102,56 @@ export default function Watch() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
           <p>Chargement du film...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Gestion des erreurs de vidéo
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#0D0D0D] text-white">
+        {/* Header */}
+        <header className="bg-[#0D0D0D] py-4 md:px-8 sticky top-0 z-50 border-b border-gray-700">
+          <div className="container mx-auto flex items-center justify-between">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center text-white hover:text-gray-300 transition-colors"
+            >
+              <span className="material-icons mr-2">arrow_back</span>
+              <span className="text-sm">Retour</span>
+            </button>
+            <button onClick={() => navigate('/')}>
+              <span className="text-xl md:text-2xl font-bold select-none">
+                Movie<span className="font-normal">Stream</span>
+              </span>
+            </button>
+          </div>
+        </header>
+
+        {/* Erreur */}
+        <div className="container mx-auto px-4 md:px-8 py-8 flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 bg-red-600 rounded-full flex items-center justify-center">
+              <span className="material-icons text-3xl text-white">error</span>
+            </div>
+            <h1 className="text-2xl font-bold mb-3">Erreur de chargement</h1>
+            <p className="text-gray-300 mb-6">{error}</p>
+            <div className="space-x-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded"
+              >
+                Retour
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded"
+              >
+                Recharger
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -145,14 +203,26 @@ export default function Watch() {
       {/* Video Player */}
       <div className="container mx-auto px-4 md:px-8 py-8">
         <div className="max-w-6xl mx-auto">
-          <NetflixVideoPlayer
-            src={currentFilm.videoUrl}
-            poster={currentFilm.cover}
-            title={currentFilm.title}
-            isHLS={currentFilm.ephemere && currentFilm.videoUrl?.includes('.m3u8')}
-            onProgress={handleProgress}
-            savedTime={getSavedTime()}
-          />
+          {currentFilm.videoUrl ? (
+            <NetflixVideoPlayer
+              src={currentFilm.videoUrl}
+              poster={currentFilm.cover}
+              title={currentFilm.title}
+              isHLS={currentFilm.ephemere && currentFilm.videoUrl.includes('.m3u8')}
+              onProgress={handleProgress}
+              savedTime={getSavedTime()}
+            />
+          ) : (
+            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
+              <div className="text-center text-white">
+                <div className="w-16 h-16 mx-auto mb-4 bg-red-600 rounded-full flex items-center justify-center">
+                  <span className="material-icons text-3xl">error</span>
+                </div>
+                <h3 className="text-xl font-bold mb-2">Vidéo non disponible</h3>
+                <p className="text-gray-300">L'URL de cette vidéo est manquante ou invalide.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Film Info */}
