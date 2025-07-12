@@ -158,49 +158,169 @@ export const NetflixVideoPlayer = ({
     setIsLoading(true);
 
     if (isMobile) {
-      // Configuration mobile SIMPLE - player natif avec HLS
+      // Configuration mobile - détection automatique du type de contenu
       const isHLSStream = src.includes('.m3u8') || src.includes('playlist');
+      const isDirectVideo = src.includes('.mp4') || src.includes('.mkv') || src.includes('.avi') || src.includes('.webm');
+      
+      console.log('🎬 [Mobile] Type de contenu détecté:', {
+        isHLSStream,
+        isDirectVideo,
+        src: src.substring(src.lastIndexOf('/') + 1),
+        fullSrc: src
+      });
       
       if (isHLSStream) {
-        // Forcer l'essai pour tous les appareils détectés comme mobile
+        // Gestion HLS pour mobile
+        console.log('🎬 [Mobile] Chargement HLS stream');
         video.src = src;
         
         try {
           video.load();
         } catch (e) {
-          console.error('Erreur lors de video.load():', e);
+          console.error('🚨 [Mobile] Erreur lors de video.load() HLS:', e);
+        }
+      } else if (isDirectVideo) {
+        // Gestion vidéo directe pour mobile (MP4, etc.)
+        console.log('🎬 [Mobile] Chargement vidéo directe MP4');
+        video.src = src;
+        
+        // Attributs spécifiques pour les vidéos directes
+        video.setAttribute('preload', 'metadata');
+        video.setAttribute('crossorigin', 'anonymous');
+        
+        try {
+          video.load();
+        } catch (e) {
+          console.error('🚨 [Mobile] Erreur lors de video.load() MP4:', e);
         }
       } else {
+        // Type inconnu - tentative générique
+        console.log('🎬 [Mobile] Type inconnu, tentative générique');
         video.src = src;
+        video.load();
       }
       
-      // Événements simplifiés pour mobile
-      const handleCanPlay = () => setIsLoading(false);
+      // Événements simplifiés pour mobile avec logs détaillés
+      const handleCanPlay = () => {
+        console.log('🎬 [Mobile] Event: canplay - Prêt à jouer');
+        setIsLoading(false);
+      };
+      
+      const handleLoadedMetadata = () => {
+        console.log('🎬 [Mobile] Event: loadedmetadata - Métadonnées chargées');
+        console.log('🎬 [Mobile] Video info:', {
+          duration: video.duration,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          readyState: video.readyState,
+          networkState: video.networkState
+        });
+      };
+      
       const handleLoadedData = () => {
+        console.log('🎬 [Mobile] Event: loadeddata - Données chargées');
         setIsLoading(false);
         if (savedTime > 0) {
           video.currentTime = savedTime;
         }
       };
-      const handleError = () => {
+      
+      const handleProgress = () => {
+        if (video.buffered.length > 0) {
+          const buffered = video.buffered.end(0);
+          console.log('🎬 [Mobile] Event: progress - Buffered:', buffered, 'seconds');
+        }
+      };
+      
+      const handleError = (e: Event) => {
+        console.error('🚨 [Mobile] Event: error');
+        console.error('🚨 [Mobile] Video error details:', {
+          error: video.error,
+          errorCode: video.error?.code,
+          errorMessage: video.error?.message,
+          networkState: video.networkState,
+          readyState: video.readyState,
+          currentSrc: video.currentSrc,
+          originalSrc: src,
+          isHLS: isHLSStream,
+          isDirect: isDirectVideo
+        });
+        
         setIsLoading(false);
-        setError('Impossible de charger cette vidéo. Le lien peut avoir expiré.');
+        
+        // Messages d'erreur spécifiques selon le type
+        if (isHLSStream) {
+          setError('Impossible de lire ce stream HLS. Le lien a peut-être expiré.');
+        } else if (isDirectVideo) {
+          setError('Impossible de lire cette vidéo. Vérifiez votre connexion.');
+        } else {
+          setError('Format de vidéo non supporté sur mobile.');
+        }
       };
 
-      // Timeout de sécurité
-      const loadingTimeout = setTimeout(() => {
-        setIsLoading(false);
-        setError('Le chargement prend trop de temps. Réessayez.');
-      }, 15000);
+      const handleLoadStart = () => {
+        console.log('🎬 [Mobile] Event: loadstart - Début du chargement');
+      };
 
-      video.addEventListener('canplay', handleCanPlay);
+      const handleWaiting = () => {
+        console.log('🎬 [Mobile] Event: waiting - En attente de données');
+      };
+
+      const handlePlaying = () => {
+        console.log('🎬 [Mobile] Event: playing - Lecture en cours');
+      };
+
+      const handleStalled = () => {
+        console.log('🎬 [Mobile] Event: stalled - Chargement bloqué');
+      };
+
+      const handleSuspend = () => {
+        console.log('🎬 [Mobile] Event: suspend - Chargement suspendu');
+      };
+
+      // Timeout de sécurité adaptatif selon le type
+      const timeoutDuration = isDirectVideo ? 20000 : 15000; // Plus long pour les MP4
+      const loadingTimeout = setTimeout(() => {
+        console.warn(`🚨 [Mobile] Timeout de chargement atteint (${timeoutDuration}ms)`);
+        console.log('🚨 [Mobile] Video state at timeout:', {
+          readyState: video.readyState,
+          networkState: video.networkState,
+          error: video.error,
+          currentSrc: video.currentSrc,
+          duration: video.duration
+        });
+        
+        setIsLoading(false);
+        if (isDirectVideo) {
+          setError('Le chargement de la vidéo prend trop de temps. Le serveur peut être lent.');
+        } else {
+          setError('Le chargement prend trop de temps. Réessayez.');
+        }
+      }, timeoutDuration);
+
+      // Ajouter tous les événements avec logs
+      video.addEventListener('loadstart', handleLoadStart);
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
       video.addEventListener('loadeddata', handleLoadedData);
+      video.addEventListener('canplay', handleCanPlay);
+      video.addEventListener('progress', handleProgress);
+      video.addEventListener('waiting', handleWaiting);
+      video.addEventListener('playing', handlePlaying);
+      video.addEventListener('stalled', handleStalled);
+      video.addEventListener('suspend', handleSuspend);
       video.addEventListener('error', handleError);
 
       return () => {
         clearTimeout(loadingTimeout);
-        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('loadstart', handleLoadStart);
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
         video.removeEventListener('loadeddata', handleLoadedData);
+        video.removeEventListener('canplay', handleCanPlay);
+        video.removeEventListener('progress', handleProgress);
+        video.removeEventListener('waiting', handleWaiting);
+        video.removeEventListener('playing', handlePlaying);
+        video.removeEventListener('stalled', handleStalled);
+        video.removeEventListener('suspend', handleSuspend);
         video.removeEventListener('error', handleError);
       };
     } else {
@@ -596,7 +716,7 @@ export const NetflixVideoPlayer = ({
           poster={poster}
           controls
           playsInline
-          preload="auto"
+          preload="metadata"
           crossOrigin="anonymous"
           onTimeUpdate={() => {
             const video = videoRef.current;
@@ -616,7 +736,12 @@ export const NetflixVideoPlayer = ({
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-              <p className="text-white text-sm">Chargement du stream...</p>
+              <p className="text-white text-sm">
+                {src.includes('.mp4') ? 'Chargement de la vidéo...' : 'Chargement du stream...'}
+              </p>
+              <p className="text-gray-400 text-xs mt-2">
+                {src.includes('.mp4') ? 'Les vidéos peuvent prendre plus de temps' : 'Patientez quelques secondes'}
+              </p>
             </div>
           </div>
         )}
@@ -968,4 +1093,3 @@ export const NetflixVideoPlayer = ({
     </div>
   );
 };
-       
