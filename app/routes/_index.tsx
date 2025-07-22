@@ -730,23 +730,10 @@ export default function Index() {
   // Préchargement intelligent basé sur le comportement utilisateur
   useEffect(() => {
     if (films.length > 0) {
-      // Précharger immédiatement les 10 premières images
-      const priorityImages = films.slice(0, 10).map(film => film.cover);
+      // Précharger uniquement les 6 premières images (above the fold)
+      const priorityImages = films.slice(0, 6).map(film => film.cover);
       preloadImages(priorityImages);
-
-      // Précharger progressivement le reste avec délai
-      setTimeout(() => {
-        const remainingImages = films.slice(10, 30).map(film => film.cover);
-        preloadImages(remainingImages);
-      }, 2000);
-
-      // Précharger le reste en arrière-plan
-      setTimeout(() => {
-        if (films.length > 30) {
-          const backgroundImages = films.slice(30).map(film => film.cover);
-          preloadImages(backgroundImages);
-        }
-      }, 10000);
+      // Ne précharge plus le reste ici !
     }
   }, [films, preloadImages]);
 

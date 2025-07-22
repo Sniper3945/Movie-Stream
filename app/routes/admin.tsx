@@ -48,6 +48,11 @@ export default function AdminDashboard() {
               onClick={() => navigate("/admin/gestion")}
             />
             <AdminCard
+              title="Remplacer une cover"
+              description="Remplacez facilement la cover d'un film par une nouvelle image WebP."
+              onClick={() => navigate("/admin/replace-cover")}
+            />
+            <AdminCard
               title="Debug"
               description="Outils de debug et informations techniques."
               onClick={() => navigate("/admin/debug")}

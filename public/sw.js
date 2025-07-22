@@ -148,6 +148,21 @@ self.addEventListener("fetch", (event) => {
         .catch(() => caches.match(request))
     );
   }
+
+  if (
+    event.request.destination === "image" &&
+    event.request.url.endsWith(".webp")
+  ) {
+    event.respondWith(
+      caches.open("images-v1").then(async (cache) => {
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+        const response = await fetch(event.request);
+        cache.put(event.request, response.clone());
+        return response;
+      })
+    );
+  }
 });
 
 // Message handler

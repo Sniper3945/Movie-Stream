@@ -11,5 +11,6 @@ export default [
   route("admin/utilisateurs", "routes/admin.utilisateurs.tsx"),
   route("admin/gestion", "routes/admin.gestion.tsx"),
   route("admin/debug", "routes/debug.tsx"),
+  route("admin/replace-cover", "routes/admin.replace-cover.tsx"),
   route("*", "routes/$.tsx"), // Ajouter la route catch-all pour les 404
 ] satisfies RouteConfig;

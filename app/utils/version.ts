@@ -1,11 +1,11 @@
 // Auto-generated version file - DO NOT EDIT MANUALLY
-// Generated at: 2025-07-12T20:44:33.142Z
+// Generated at: 2025-07-22T14:07:53.277Z
 
 export const VERSION_INFO = {
-  version: 'v2025-07-12-2244',
-  timestamp: 'md0prwtx',
-  buildDate: '2025-07-12T20:44:33.142Z',
-  cacheBuster: 'v2025-07-12-2244-md0prwtx'
+  version: 'v2025-07-22-1607',
+  timestamp: 'mdem0bel',
+  buildDate: '2025-07-22T14:07:53.277Z',
+  cacheBuster: 'v2025-07-22-1607-mdem0bel'
 } as const;
 
 export const getVersion = () => VERSION_INFO.version;
